@@ -200,23 +200,22 @@ export class OAuthClient {
 		if (!this._authorizationServer) {
 			throw new Error('OAuthClient not initialized')
 		}
-		if (!this.loggedIn.value) {
-			throw new Error('OAuthClient not logged in')
-		}
 		this._refreshToken.value = undefined
-		this._accessToken.value = undefined
-		const logoutUrl = new URL(
-			this._authorizationServer?.end_session_endpoint ??
-				`${this._issuer.toString()}/oauth2/logout`,
-		)
-		logoutUrl.searchParams.set(
-			'post_logout_redirect_uri',
-			this._postLogoutRedirectUri,
-		)
-		if (logout_hint) {
-			logoutUrl.searchParams.set('logout_hint', logout_hint)
+		if (this.loggedIn.value) {
+			this._accessToken.value = undefined
+			const logoutUrl = new URL(
+				this._authorizationServer?.end_session_endpoint ??
+					`${this._issuer.toString()}/oauth2/logout`,
+			)
+			logoutUrl.searchParams.set(
+				'post_logout_redirect_uri',
+				this._postLogoutRedirectUri,
+			)
+			if (logout_hint) {
+				logoutUrl.searchParams.set('logout_hint', logout_hint)
+			}
+			document.location.replace(logoutUrl.toString())
 		}
-		document.location.replace(logoutUrl.toString())
 	}
 
 	public get loggedIn() {
