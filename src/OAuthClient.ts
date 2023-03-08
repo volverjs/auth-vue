@@ -59,7 +59,6 @@ export class OAuthClient {
 			.then((response) =>
 				oauth.processDiscoveryResponse(this._issuer, response),
 			)
-		console.log(this._authorizationServer)
 		if (this._refreshToken.value) {
 			return await this.refreshToken()
 		}
