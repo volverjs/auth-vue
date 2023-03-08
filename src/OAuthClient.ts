@@ -10,6 +10,7 @@ export type OAuthClientOptions = {
 	scopes?: string[] | string
 	storage?: Storage
 	redirectUri?: string
+	postLogoutRedirectUri?: string
 }
 
 export class OAuthClient {
@@ -18,6 +19,7 @@ export class OAuthClient {
 	private _scope: string
 	private _storage: Storage
 	private _redirectUri: string
+	private _postLogoutRedirectUri: string
 	private _refreshToken: Ref<string | undefined | null>
 	private _accessToken: Ref<string | undefined | null>
 	private _authorizationServer?: oauth.AuthorizationServer
@@ -39,6 +41,8 @@ export class OAuthClient {
 		this._accessToken = ref()
 		this._codeVerifier = ref(this._storage.get('code_verifier'))
 		this._redirectUri = options.redirectUri ?? document.location.origin
+		this._postLogoutRedirectUri =
+			options.postLogoutRedirectUri ?? document.location.origin
 
 		watch(this._refreshToken, (newValue) => {
 			this._storage.set('refresh_token', newValue)
@@ -49,12 +53,13 @@ export class OAuthClient {
 		})
 	}
 
-	initialize = async () => {
+	public initialize = async () => {
 		this._authorizationServer = await oauth
 			.discoveryRequest(this._issuer)
 			.then((response) =>
 				oauth.processDiscoveryResponse(this._issuer, response),
 			)
+		console.log(this._authorizationServer)
 		if (this._refreshToken.value) {
 			return await this.refreshToken()
 		}
@@ -65,7 +70,7 @@ export class OAuthClient {
 		return Promise.resolve()
 	}
 
-	authorize = async () => {
+	public authorize = async () => {
 		if (!this._authorizationServer) {
 			throw new Error('OAuthClient not initialized')
 		}
@@ -86,7 +91,7 @@ export class OAuthClient {
 		document.location.replace(authorizationUrl.toString())
 	}
 
-	handleCodeResponse = async (urlParams: URLSearchParams) => {
+	public handleCodeResponse = async (urlParams: URLSearchParams) => {
 		if (!this._authorizationServer) {
 			throw new Error('OAuthClient not initialized')
 		}
@@ -133,7 +138,7 @@ export class OAuthClient {
 		return this._accessToken
 	}
 
-	refreshToken = async () => {
+	public refreshToken = async () => {
 		if (!this._authorizationServer) {
 			throw new Error('OAuthClient not initialized')
 		}
@@ -158,20 +163,38 @@ export class OAuthClient {
 		return this._accessToken
 	}
 
-	logout = () => {
+	public logout = (logout_hint?: string) => {
+		if (!this._authorizationServer) {
+			throw new Error('OAuthClient not initialized')
+		}
+		if (!this.loggedIn.value) {
+			throw new Error('OAuthClient not logged in')
+		}
 		this._refreshToken.value = undefined
 		this._accessToken.value = undefined
+		const logoutUrl = new URL(
+			this._authorizationServer?.end_session_endpoint ??
+				`${this._issuer.toString()}/oauth2/logout`,
+		)
+		logoutUrl.searchParams.set(
+			'post_logout_redirect_uri',
+			this._postLogoutRedirectUri,
+		)
+		if (logout_hint) {
+			logoutUrl.searchParams.set('logout_hint', logout_hint)
+		}
+		document.location.replace(logoutUrl.toString())
 	}
 
-	get loggedIn() {
+	public get loggedIn() {
 		return computed(() => !!this._accessToken.value)
 	}
 
-	get accessToken() {
+	public get accessToken() {
 		return readonly(this._accessToken)
 	}
 
-	get initialized() {
+	public get initialized() {
 		return !!this._authorizationServer
 	}
 }
