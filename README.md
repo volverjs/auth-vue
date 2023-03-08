@@ -20,6 +20,7 @@
 
 ## Install
 
+```bash
 # pnpm
 pnpm add @volverjs/auth-vue
 
@@ -28,13 +29,19 @@ yarn add @volverjs/auth-vue
 
 # npm
 npm install @volverjs/auth-vue --save
+```
 
 ## Usage
 
 This library exports four main classes: `Storage`, `LocalStorage`, `SessionStorage` and `OAuthClient`.
 
 ```typescript
-import { Storage, LocalStorage, SessionStorage, OAuthClient } from '@volverjs/auth-vue'
+import {
+  Storage,
+  LocalStorage,
+  SessionStorage,
+  OAuthClient
+} from '@volverjs/auth-vue'
 ```
 
 ### Storage
@@ -82,12 +89,12 @@ It accepts a specific configuration object:
 import { type OAuthClientOptions } from '@volverjs/auth-vue'
 
 type OAuthClientOptions = {
-	url: string
-	clientId: string
-	tokenEndpointAuthMethod?: oauth.ClientAuthenticationMethod
-	scopes?: string[] | string
-	storage?: Storage
-	redirectUri?: string
+  url: string
+  clientId: string
+  tokenEndpointAuthMethod?: oauth.ClientAuthenticationMethod
+  scopes?: string[] | string
+  storage?: Storage
+  redirectUri?: string
 }
 ```
 
@@ -122,6 +129,7 @@ authClient.initialized // check if the OAuth client is initialized
 ```
 
 ## VueJS - Plugin
+
 If you are using VueJS, you can use the `@volverjs/auth-vue` plugin to simplify the authentication process.
 
 ### Install
@@ -144,6 +152,7 @@ app.mount('#app')
 The plugin will inject the `authClient` object in the VueJS instance. And to use it you can access it with `this.$vvAuth`.
 
 ## Composable
+
 If you are using VueJS, you can also use the `@volverjs/auth-vue` composable to simplify the authentication process.
 
 After create the `OAuthClient` instance, you can use the `useOAuthClient` composable to access and manage the authentication status.
@@ -151,15 +160,10 @@ After create the `OAuthClient` instance, you can use the `useOAuthClient` compos
 ```typescript
 import { useAuth } from '@volverjs/auth-vue'
 
-const { 
-  initialize,
-  authorize,
-  logout,
-  loggedIn,
-  accessToken,
-  refreshToken
-} = useAuth()
+const { initialize, authorize, logout, loggedIn, accessToken, refreshToken } =
+  useAuth()
 ```
+
 ## License
 
 [MIT](http://opensource.org/licenses/MIT)
