@@ -4,9 +4,10 @@
     "author": "24/Consulting",
     "license": "MIT",
     "keywords": [
-        "OAuth",
-        "OpenID",
-        "vue"
+        "oauth",
+        "openid",
+        "vue3",
+        "storage"
     ],
     "homepage": "https://github.com/volverjs/auth-vue",
     "repository": {

@@ -4,7 +4,7 @@
 
 ## @volverjs/auth-vue
 
-`auth` `openid` `session` `localStorage`
+`oauth` `openid` `vue3` `storage`
 
 <br>
 

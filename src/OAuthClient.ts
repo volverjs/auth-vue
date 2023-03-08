@@ -53,6 +53,41 @@ export class OAuthClient {
 		})
 	}
 
+	public extend = (options: OAuthClientOptions) => {
+		if (options.url) {
+			this._issuer = new URL(options.url)
+			this._authorizationServer = undefined
+			this._refreshToken.value = undefined
+			this._accessToken.value = undefined
+			this._codeVerifier.value = undefined
+		}
+		if (options.clientId) {
+			this._client.client_id = options.clientId
+		}
+		if (options.tokenEndpointAuthMethod) {
+			this._client.token_endpoint_auth_method =
+				options.tokenEndpointAuthMethod
+		}
+		if (options.scopes) {
+			this._scope =
+				typeof options.scopes === 'string'
+					? options.scopes
+					: options.scopes?.join(' ') ?? ''
+		}
+		if (options.storage) {
+			this._storage = options.storage
+			this._refreshToken.value = this._storage.get('refresh_token')
+			this._accessToken.value = undefined
+			this._codeVerifier.value = this._storage.get('code_verifier')
+		}
+		if (options.redirectUri) {
+			this._redirectUri = options.redirectUri
+		}
+		if (options.postLogoutRedirectUri) {
+			this._postLogoutRedirectUri = options.postLogoutRedirectUri
+		}
+	}
+
 	public initialize = async () => {
 		this._authorizationServer = await oauth
 			.discoveryRequest(this._issuer)
