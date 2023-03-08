@@ -20,10 +20,10 @@ export class OAuthClient {
 	private _storage: Storage
 	private _redirectUri: string
 	private _postLogoutRedirectUri: string
-	private _refreshToken: Ref<string | undefined | null>
-	private _accessToken: Ref<string | undefined | null>
+	private _refreshToken: Ref<string | undefined | null> = ref()
+	private _accessToken: Ref<string | undefined | null> = ref()
+	private _codeVerifier: Ref<string | undefined | null> = ref()
 	private _authorizationServer?: oauth.AuthorizationServer
-	private _codeVerifier: Ref<string | undefined | null>
 
 	constructor(options: OAuthClientOptions) {
 		this._issuer = new URL(options.url)
@@ -37,9 +37,8 @@ export class OAuthClient {
 				? options.scopes
 				: options.scopes?.join(' ') ?? ''
 		this._storage = options.storage ?? new LocalStorage('oauth')
-		this._refreshToken = ref(this._storage.get('refresh_token'))
-		this._accessToken = ref()
-		this._codeVerifier = ref(this._storage.get('code_verifier'))
+		this._refreshToken.value = this._storage.get('refresh_token')
+		this._codeVerifier.value = this._storage.get('code_verifier')
 		this._redirectUri = options.redirectUri ?? document.location.origin
 		this._postLogoutRedirectUri =
 			options.postLogoutRedirectUri ?? document.location.origin
@@ -169,7 +168,7 @@ export class OAuthClient {
 		this._codeVerifier.value = undefined
 		this._accessToken.value = result.access_token
 		this._refreshToken.value = result.refresh_token
-		return this._accessToken
+		return this.accessToken
 	}
 
 	public refreshToken = async () => {
@@ -194,7 +193,7 @@ export class OAuthClient {
 		}
 		this._accessToken.value = result.access_token
 		this._refreshToken.value = result.refresh_token
-		return this._accessToken
+		return this.accessToken
 	}
 
 	public logout = (logout_hint?: string) => {
