@@ -6,6 +6,9 @@ export { Storage } from './Storage'
 export { LocalStorage } from './LocalStorage'
 export { SessionStorage } from './SessionStorage'
 
+export type {
+	OAuthClientOptions
+}
 export type AuthPluginOptions =
 	| OAuthClientOptions
 	| {
