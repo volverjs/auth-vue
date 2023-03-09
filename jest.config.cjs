@@ -4,5 +4,5 @@ module.exports = {
 	testMatch: ['**/test/**/*.ts', '**/test/**/*.js'],
 	verbose: true,
 	testPathIgnorePatterns: ['dist.*\\.ts$'],
-	setupFiles: ['jest-localstorage-mock'],
+	setupFiles: ['jest-localstorage-mock', './setupJestMock.js'],
 }
