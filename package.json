@@ -42,10 +42,10 @@
         "vue": "^3.2.47"
     },
     "devDependencies": {
-        "@types/jest": "^29.4.0",
+        "@types/jest": "^29.5.0",
         "@types/qs": "^6.9.7",
-        "@typescript-eslint/eslint-plugin": "^5.54.1",
-        "@typescript-eslint/parser": "^5.54.1",
+        "@typescript-eslint/eslint-plugin": "^5.55.0",
+        "@typescript-eslint/parser": "^5.55.0",
         "copy": "^0.3.2",
         "eslint": "^8.36.0",
         "eslint-config-prettier": "^8.7.0",
@@ -54,8 +54,8 @@
         "jest-fetch-mock": "^3.0.3",
         "jest-localstorage-mock": "^2.4.26",
         "jest-mock": "^29.5.0",
-        "jsdom": "^21.1.0",
-        "node-fetch": "^3.3.0",
+        "jsdom": "^21.1.1",
+        "node-fetch": "^3.3.1",
         "prettier": "^2.8.4",
         "ts-jest": "^29.0.5",
         "typescript": "^4.9.5"
