@@ -1,17 +1,29 @@
-import { OAuthClient } from '../dist/OAuthClient'
-import fetchMock from 'jest-fetch-mock'
-import jest from 'jest-mock'
+import { describe, beforeEach, vi, it, expect } from 'vitest'
+import createFetchMock from 'vitest-fetch-mock'
+import crypto from 'crypto'
+import { OAuthClient } from '../src/OAuthClient'
+
+const fetchMock = createFetchMock(vi)
+
+global.crypto = {
+	// @ts-ignore: Mocking window.crypto
+	getRandomValues: (arr) => crypto.randomBytes(arr.length),
+	// @ts-ignore: Mocking window.crypto
+	subtle: {
+		digest: () => {
+			return Promise.resolve(new ArrayBuffer(0))
+		},
+	},
+}
 
 const response = JSON.stringify({
-	token_endpoint:
-		'http://dummy.com/oauth2/v2.0/token',
+	token_endpoint: 'http://dummy.com/oauth2/v2.0/token',
 	token_endpoint_auth_methods_supported: [
 		'client_secret_post',
 		'private_key_jwt',
 		'client_secret_basic',
 	],
-	jwks_uri:
-		'http://dummy.com/discovery/v2.0/keys',
+	jwks_uri: 'http://dummy.com/discovery/v2.0/keys',
 	response_modes_supported: ['query', 'fragment', 'form_post'],
 	subject_types_supported: ['pairwise'],
 	id_token_signing_alg_values_supported: ['RS256'],
@@ -25,14 +37,11 @@ const response = JSON.stringify({
 	issuer: 'http://dummy.com',
 	request_uri_parameter_supported: false,
 	userinfo_endpoint: 'https://graph.microsoft.com/oidc/userinfo',
-	authorization_endpoint:
-		'http://dummy.com/oauth2/v2.0/authorize',
-	device_authorization_endpoint:
-		'http://dummy.com/oauth2/v2.0/devicecode',
+	authorization_endpoint: 'http://dummy.com/oauth2/v2.0/authorize',
+	device_authorization_endpoint: 'http://dummy.com/oauth2/v2.0/devicecode',
 	http_logout_supported: true,
 	frontchannel_logout_supported: true,
-	end_session_endpoint:
-		'http://dummy.com/oauth2/v2.0/logout',
+	end_session_endpoint: 'http://dummy.com/oauth2/v2.0/logout',
 	claims_supported: [
 		'sub',
 		'iss',
@@ -54,8 +63,7 @@ const response = JSON.stringify({
 		'c_hash',
 		'email',
 	],
-	kerberos_endpoint:
-		'http://dummy.com/kerberos',
+	kerberos_endpoint: 'http://dummy.com/kerberos',
 	tenant_region_scope: 'EU',
 	cloud_instance_name: 'microsoftonline.com',
 	cloud_graph_host_name: 'graph.windows.net',
@@ -92,8 +100,9 @@ describe('OAuthClient', () => {
 		expect(client.initialized).toBe(true)
 	})
 	it('Should authorize', async () => {
-		const mockResponse = jest.fn()
+		const mockResponse = vi.fn()
 		global.document = {
+			// @ts-ignore: Mocking window.location
 			location: {
 				assign: mockResponse,
 				replace: mockResponse,
@@ -114,9 +123,7 @@ describe('OAuthClient', () => {
 		expect(client.initialized).toBe(true)
 		await client.authorize()
 		const urlToTest = mockResponse.mock.calls[0][0]
-		expect(urlToTest).toContain(
-			'http://dummy.com/oauth2/v2.0/authorize',
-		)
+		expect(urlToTest).toContain('http://dummy.com/oauth2/v2.0/authorize')
 		expect(urlToTest).toContain('scope=test')
 		expect(urlToTest).toContain('client_id=test')
 	})

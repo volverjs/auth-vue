@@ -51,54 +51,50 @@ If you need to create a custom storage class, you can extend the `Storage` class
 
 ### LocalStorage
 
-The `LocalStorage` class provides a way to interact with the browser `localStorage` API. It also extends the `Storage` class.
+The `LocalStorage` class provides a way to interact with the browser `localStorage` API.
+All keys are scoped by the `LocalStorage` instance name.
 
 ```typescript
 import { LocalStorage } from '@volverjs/auth-vue'
 
-const myLocalStorage = new LocalStorage('my-local-storage')
-myLocalStorage.get('my-key', 'default-value')
-myLocalStorage.set('my-key', 'my-value')
-myLocalStorage.delete('my-key')
-myLocalStorage.clear() // clear all keys present in our storage
-myLocalStorage.suppprted() // check if the browser supports localStorage
+if (LocalStorage.suppprted()) {
+  const myLocalStorage = new LocalStorage('my-local-storage')
+  // set a specific key
+  myLocalStorage.set('my-key', 'my-value')
+  // get a specific key
+  myLocalStorage.get('my-key', 'default-value')
+  // delete a specific key
+  myLocalStorage.delete('my-key')
+  // clear all keys present in our storage
+  myLocalStorage.clear()
+}
 ```
 
 ### SessionStorage
 
-The `SessionStorage` class provides a way to interact with the browser `sessionStorage` API. It also extends the `Storage` class.
+The `SessionStorage` class provides a way to interact with the browser `sessionStorage` API.
+All keys are scoped by the `SessionStorage` instance name.
 
 ```typescript
 import { SessionStorage } from '@volverjs/auth-vue'
 
-const mySessionStorage = new SessionStorage('my-session-storage')
-mySessionStorage.get('my-key', 'default-value')
-mySessionStorage.set('my-key', 'my-value')
-mySessionStorage.delete('my-key')
-mySessionStorage.clear() // clear all keys present in our session storage
-mySessionStorage.suppprted() // check if the browser supports sessionStorage
+if (SessionStorage.suppprted()) {
+  const mySessionStorage = new SessionStorage('my-session-storage')
+  // set a specific key
+  mySessionStorage.set('my-key', 'my-value')
+  // get a specific key
+  mySessionStorage.get('my-key', 'default-value')
+  // delete a specific key
+  mySessionStorage.delete('my-key')
+  // clear all keys present in our session storage
+  mySessionStorage.clear()
+}
 ```
 
 ### OAuthClient
 
-The `OAuthClient` class is a wrapper of [oauth4webapi](https://github.com/panva/oauth4webapi) to simplify the authentication process. It use the `LocalStorage` class to store the refresh token and the code verifier.
-
-It accepts a specific configuration object:
-
-```typescript
-import { type OAuthClientOptions } from '@volverjs/auth-vue'
-
-type OAuthClientOptions = {
-  url: string
-  clientId: string
-  tokenEndpointAuthMethod?: oauth.ClientAuthenticationMethod
-  scopes?: string[] | string
-  storage?: Storage
-  redirectUri?: string
-}
-```
-
-To create a new `OAuthClient` instance:
+The `OAuthClient` class is a wrapper of [oauth4webapi](https://github.com/panva/oauth4webapi) to simplify the authentication process.
+It use the `Storage` to store the refresh token and the code verifier.
 
 ```typescript
 import { OAuthClient } from '@volverjs/auth-vue'
@@ -113,30 +109,33 @@ const authClient = new OAuthClient({
 The `OAuthClient` class provides a set of methods to interact with the OAuth server:
 
 ```typescript
-authClient.initialize() // initialize the OAuth client
-authClient.authorize() // redirect the user to the OAuth server to authorize the application
-authClient.handleCodeResponse() // handle the OAuth server response
-authClient.refreshToken() // refresh the access token
-authClient.logout() // logout the user
+// initialize the OAuth client
+authClient.initialize()
+// redirect the user to the OAuth server to authorize the application
+authClient.authorize()
+// handle the OAuth server response
+authClient.handleCodeResponse()
+// refresh the access token
+authClient.refreshToken()
+// logout the user
+authClient.logout()
 ```
 
 The `OAuthClient` class also provides a set of getters to retrieve the OAuth status:
 
 ```typescript
-authClient.loggedIn // check if the user is logged in
-authClient.accessToken // get the access token
+authClient.loggedIn // the reactive status of the user
+authClient.accessToken // the reactive value of the access token
 authClient.initialized // check if the OAuth client is initialized
 ```
 
-## VueJS - Plugin
+## Plugin
 
-If you are using VueJS, you can use the `@volverjs/auth-vue` plugin to simplify the authentication process.
-
-### Install
+To use a `OAuthClient` instance inside a Vue 3 application, you can use the plugin provided by `@volverjs/auth-vue`.
 
 ```typescript
 import { createApp } from 'vue'
-import createOAuthClient from '@volverjs/auth-vue'
+import { createOAuthClient } from '@volverjs/auth-vue'
 
 const app = createApp(App)
 const authClient = createOAuthClient({
@@ -145,23 +144,29 @@ const authClient = createOAuthClient({
   scopes: 'openid profile email'
 })
 
-app.use(authClient)
+app.use(authClient, { global: true })
 app.mount('#app')
 ```
 
-The plugin will inject the `authClient` object in the VueJS instance. And to use it you can access it with `this.$vvAuth`.
+With the option `global: true` the plugin will inject the `OAuthClient` instance inside the global configuration, so you can access it with `this.$vvAuth` inside components.
 
 ## Composable
 
-If you are using VueJS, you can also use the `@volverjs/auth-vue` composable to simplify the authentication process.
+`@volverjs/auth-vue` also provides a composable to access the `OAuthClient` instance.
 
-After create the `OAuthClient` instance, you can use the `useOAuthClient` composable to access and manage the authentication status.
+```vue
+<template>
+  <div>
+    <button v-if="!loggedIn" @click="authorize">Login</button>
+    <button v-else @click="logout">Logout</button>
+  </div>
+</template>
 
-```typescript
-import { useAuth } from '@volverjs/auth-vue'
-
-const { initialize, authorize, logout, loggedIn, accessToken, refreshToken } =
-  useAuth()
+<script setup lang="ts">
+  import { useAuth } from '@volverjs/auth-vue'
+  const client = useOAuthClient()
+  const { loggedIn, authorize, logout } = client
+</script>
 ```
 
 ## License

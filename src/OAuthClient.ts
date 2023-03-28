@@ -4,12 +4,95 @@ import type { Storage } from './Storage'
 import { LocalStorage } from './LocalStorage'
 
 export type OAuthClientOptions = {
+	/**
+	 * The URL of the OpenID Connect issuer.
+	 * @example
+	 * ```typescript
+	 * const client = new OAuthClient({
+	 *  url: 'https://example.com',
+	 * 	clientId: 'my-client-id',
+	 * })
+	 * ```
+	 */
 	url: string
+	/**
+	 * The client ID.
+	 * @example
+	 * ```typescript
+	 * const client = new OAuthClient({
+	 *  url: 'https://example.com',
+	 * 	clientId: 'my-client-id',
+	 * })
+	 * ```
+	 */
 	clientId: string
+	/**
+	 * The token endpoint authentication method.
+	 * @default 'none'
+	 * @example
+	 * ```typescript
+	 * const client = new OAuthClient({
+	 *  url: 'https://example.com',
+	 * 	clientId: 'my-client-id',
+	 *  tokenEndpointAuthMethod: 'client_secret_basic'
+	 * })
+	 * ```
+	 */
 	tokenEndpointAuthMethod?: oauth.ClientAuthenticationMethod
+	/**
+	 * The scopes to request.
+	 * @default ''
+	 * @example
+	 * ```typescript
+	 * const client = new OAuthClient({
+	 * 	url: 'https://example.com',
+	 * 	clientId: 'my-client-id',
+	 * 	scopes: 'openid profile email'
+	 * })
+	 * ```
+	 */
 	scopes?: string[] | string
+	/**
+	 * The storage to use.
+	 * @default
+	 * `new LocalStorage('oauth')`
+	 * @example
+	 * ```typescript
+	 * const client = new OAuthClient({
+	 * 	url: 'https://example.com',
+	 * 	clientId: 'my-client-id',
+	 * 	storage: new SessionStorage('my-app')
+	 * })
+	 * ```
+	 */
 	storage?: Storage
+	/**
+	 * The redirect URI.
+	 * @default
+	 * `document.location.origin`
+	 * @example
+	 * ```typescript
+	 * const client = new OAuthClient({
+	 * 	url: 'https://example.com',
+	 * 	clientId: 'my-client-id',
+	 * 	redirectUri: 'https://my-app.com/callback'
+	 * })
+	 * ```
+	 */
 	redirectUri?: string
+	/**
+	 * The post-logout redirect URI.
+	 * @default
+	 * `document.location.origin`
+	 * @example
+	 * ```typescript
+	 * const client = new OAuthClient({
+	 * 	url: 'https://example.com',
+	 * 	clientId: 'my-client-id',
+	 * 	postLogoutRedirectUri: 'https://my-app.com'
+	 * })
+	 * ```
+	 */
 	postLogoutRedirectUri?: string
 }
 
@@ -52,6 +135,20 @@ export class OAuthClient {
 		})
 	}
 
+	/**
+	 * Extends the client options.
+	 * @param options - The options to change.
+	 * @example
+	 * ```typescript
+	 * const client = new OAuthClient({
+	 * 	url: 'https://example.com',
+	 * 	clientId: 'my-client-id',
+	 * })
+	 * client.extend({
+	 * 	scopes: 'openid profile email'
+	 * })
+	 * ```
+	 */
 	public extend = (options: OAuthClientOptions) => {
 		if (options.url) {
 			this._issuer = new URL(options.url)
@@ -87,6 +184,18 @@ export class OAuthClient {
 		}
 	}
 
+	/**
+	 * Initializes the client and tries to refresh the token if a refresh token is available, see {@link refreshToken}.
+	 * or handle the code response if a code verifier is available, see {@link handleCodeResponse}.
+	 * @example
+	 * ```typescript
+	 * const client = new OAuthClient({
+	 * 	url: 'https://example.com',
+	 * 	clientId: 'my-client-id',
+	 * })
+	 * await client.initialize()
+	 * ```
+	 */
 	public initialize = async () => {
 		this._authorizationServer = await oauth
 			.discoveryRequest(this._issuer)
@@ -103,6 +212,19 @@ export class OAuthClient {
 		return Promise.resolve()
 	}
 
+	/**
+	 * Authorize the application redirecting the client to the authorization server.
+	 * @throws If the client is not initialized.
+	 * @example
+	 * ```typescript
+	 * const client = new OAuthClient({
+	 * 	url: 'https://example.com',
+	 * 	clientId: 'my-client-id',
+	 * })
+	 * await client.initialize()
+	 * await client.authorize()
+	 * ```
+	 */
 	public authorize = async () => {
 		if (!this._authorizationServer) {
 			throw new Error('OAuthClient not initialized')
@@ -124,6 +246,11 @@ export class OAuthClient {
 		document.location.replace(authorizationUrl.toString())
 	}
 
+	/**
+	 * Handle the authorization code response.
+	 * @throws If the client is not initialized.
+	 * @param urlParams - The URL parameters.
+	 */
 	public handleCodeResponse = async (urlParams: URLSearchParams) => {
 		if (!this._authorizationServer) {
 			throw new Error('OAuthClient not initialized')
@@ -171,6 +298,20 @@ export class OAuthClient {
 		return this.accessToken
 	}
 
+	/**
+	 * Refresh the access token.
+	 * @throws If the client is not initialized.
+	 * @example
+	 * ```typescript
+	 * const client = new OAuthClient({
+	 * 	url: 'https://example.com',
+	 * 	clientId: 'my-client-id',
+	 * })
+	 * await client.initialize()
+	 * await client.refreshToken()
+	 * ```
+	 * @returns The new access token.
+	 */
 	public refreshToken = async () => {
 		if (!this._authorizationServer) {
 			throw new Error('OAuthClient not initialized')
@@ -196,7 +337,21 @@ export class OAuthClient {
 		return this.accessToken
 	}
 
-	public logout = (logout_hint?: string) => {
+	/**
+	 * Logout the user.
+	 * @param logoutHint - The hint to the Authorization Server about the End-User that is logging out.
+	 * @throws If the client is not initialized.
+	 * @example
+	 * ```typescript
+	 * const client = new OAuthClient({
+	 * 	url: 'https://example.com',
+	 * 	clientId: 'my-client-id',
+	 * })
+	 * await client.initialize()
+	 * client.logout()
+	 * ```
+	 */
+	public logout = (logoutHint?: string) => {
 		if (!this._authorizationServer) {
 			throw new Error('OAuthClient not initialized')
 		}
@@ -211,21 +366,63 @@ export class OAuthClient {
 				'post_logout_redirect_uri',
 				this._postLogoutRedirectUri,
 			)
-			if (logout_hint) {
-				logoutUrl.searchParams.set('logout_hint', logout_hint)
+			if (logoutHint) {
+				logoutUrl.searchParams.set('logout_hint', logoutHint)
 			}
 			document.location.replace(logoutUrl.toString())
 		}
 	}
 
+	/**
+	 * Reactive value indicating whether the user is logged in.
+	 * @example
+	 * ```typescript
+	 * const client = new OAuthClient({
+	 * 	url: 'https://example.com',
+	 * 	clientId: 'my-client-id',
+	 * })
+	 * await client.initialize()
+	 * if (client.loggedIn.value) {
+	 * 	// User is logged in
+	 * }
+	 * ```
+	 */
 	public get loggedIn() {
 		return computed(() => !!this._accessToken.value)
 	}
 
+	/**
+	 * Reactive value indicating the access token.
+	 * @example
+	 * ```typescript
+	 * const client = new OAuthClient({
+	 * 	url: 'https://example.com',
+	 * 	clientId: 'my-client-id',
+	 * })
+	 * await client.initialize()
+	 * if (client.loggedIn.value) {
+	 * 	// User is logged in
+	 * 	console.log(client.accessToken.value)
+	 * }
+	 * ```
+	 */
 	public get accessToken() {
 		return readonly(this._accessToken)
 	}
 
+	/**
+	 * Indicates whether the client has been initialized.
+	 * @example
+	 * ```typescript
+	 * const client = new OAuthClient({
+	 * 	url: 'https://example.com',
+	 * 	clientId: 'my-client-id',
+	 * })
+	 * if (!client.initialized) {
+	 * 	await client.initialize()
+	 * }
+	 * ```
+	 */
 	public get initialized() {
 		return !!this._authorizationServer
 	}
