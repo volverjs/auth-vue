@@ -135,7 +135,7 @@ app.use(authClient, { global: true })
 app.mount('#app')
 ```
 
-With the option `global: true` the plugin will inject the `OAuthClient` instance inside the global configuration, so you can access it with `this.$vvAuth` with Vue Options API.
+With the option `global: true` the plugin will inject the `OAuthClient` instance inside the global configuration, so you can access it with `this.$vvAuth` in Vue Options API.
 
 ## Composable
 
@@ -155,6 +155,10 @@ With the option `global: true` the plugin will inject the `OAuthClient` instance
   const { loggedIn, authorize, logout } = client
 </script>
 ```
+
+## Acknoledgements
+
+`@volverjs/auth-vue` is based on [oauth4webapi](https://github.com/panva/oauth4webapi), an OpenID Connect certified client for web applications.
 
 ## License
 
