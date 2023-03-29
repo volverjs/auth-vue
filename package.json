@@ -1,0 +1,107 @@
+{
+    "name": "@volverjs/auth-vue",
+    "description": "Simple OAuth 2 / OpenID Connect plugin for Vue 3",
+    "author": "24/Consulting",
+    "license": "MIT",
+    "keywords": [
+        "oauth",
+        "openid",
+        "vue3",
+        "storage"
+    ],
+    "homepage": "https://github.com/volverjs/auth-vue",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/volverjs/auth-vue"
+    },
+    "bugs": {
+        "url": "https://github.com/volverjs/auth-vue/issues"
+    },
+    "version": "0.0.0",
+    "engines": {
+        "node": ">= 16.x"
+    },
+    "packageManager": "pnpm@7.8.0",
+    "scripts": {
+        "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
+        "type-check": "tsc --noEmit",
+        "build": "vite build && vue-tsc --declaration --emitDeclarationOnly && copy src/**/*.d.ts dist",
+        "test-vitest": "vitest run",
+        "test-vitest-watch": "vitest",
+        "credits": "npx @opengovsg/credits-generator"
+    },
+    "type": "module",
+    "sideEffects": false,
+    "main": "./dist/index.js",
+    "module": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "files": [
+        "dist",
+        "src",
+        "*.d.ts"
+    ],
+    "dependencies": {
+        "oauth4webapi": "^2.2.0",
+        "vue": "^3.2.47"
+    },
+    "devDependencies": {
+        "vitest-fetch-mock": "^0.2.2",
+        "@typescript-eslint/eslint-plugin": "^5.57.0",
+        "@typescript-eslint/parser": "^5.57.0",
+        "copy": "^0.3.2",
+        "eslint": "^8.36.0",
+        "eslint-config-prettier": "^8.8.0",
+        "eslint-plugin-prettier": "^4.2.1",
+        "happy-dom": "^8.9.0",
+        "node-fetch": "^3.3.1",
+        "prettier": "^2.8.7",
+        "typescript": "^5.0.2",
+        "vite": "^4.2.1",
+        "vite-plugin-eslint": "^1.8.1",
+        "vitest": "^0.29.7",
+        "vue-tsc": "^1.2.0"
+    },
+    "typesVersions": {
+        "*": {
+            "*": [
+                "dist/index.d.ts"
+            ],
+            "storage": [
+                "dist/Storage.d.ts"
+            ],
+            "local-storage": [
+                "dist/LocalStorage.d.ts"
+            ],
+            "session-storage": [
+                "dist/SessionStorage.d.ts"
+            ],
+            "oauth-client": [
+                "dist/OauthClient.d.ts"
+            ]
+        }
+    },
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.js"
+        },
+        "./src/*": "./src/*",
+        "./dist/*": "./dist/*",
+        "./storage": {
+            "types": "./dist/Storage.d.ts",
+            "import": "./dist/Storage.js"
+        },
+        "./local-storage": {
+            "types": "./dist/LocalStorage.d.ts",
+            "import": "./dist/LocalStorage.js"
+        },
+        "./session-storage": {
+            "types": "./dist/SessionStorage.d.ts",
+            "import": "./dist/SessionStorage.js"
+        },
+        "./oauth-client": {
+            "types": "./dist/OauthClient.d.ts",
+            "import": "./dist/OauthClient.js"
+        }
+    }
+}
