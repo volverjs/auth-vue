@@ -5,7 +5,7 @@ import { LocalStorage } from './LocalStorage'
 
 export type OAuthClientOptions = {
 	/**
-	 * The URL of the OpenID Connect issuer.
+	 * The URL of the OAuth issuer.
 	 * @example
 	 * ```typescript
 	 * const client = new OAuthClient({
@@ -16,7 +16,7 @@ export type OAuthClientOptions = {
 	 */
 	url: string
 	/**
-	 * The client ID.
+	 * The client ID of the applicatio.
 	 * @example
 	 * ```typescript
 	 * const client = new OAuthClient({
@@ -27,8 +27,11 @@ export type OAuthClientOptions = {
 	 */
 	clientId: string
 	/**
-	 * The token endpoint authentication method.
-	 * @default 'none'
+	 * The client authentication method, see {@link oauth.ClientAuthenticationMethod}
+	 * @default 'none' public client
+	 * @see [RFC 6749 - The OAuth 2.0 Authorization Framework](https://www.rfc-editor.org/rfc/rfc6749.html#section-2.3)
+	 * @see [OpenID Connect Core 1.0](https://openid.net/specs/openid-connect-core-1_0.html#ClientAuthentication)
+	 * @see [OAuth Token Endpoint Authentication Methods](https://www.iana.org/assignments/oauth-parameters/oauth-parameters.xhtml#token-endpoint-auth-method)
 	 * @example
 	 * ```typescript
 	 * const client = new OAuthClient({
@@ -40,7 +43,7 @@ export type OAuthClientOptions = {
 	 */
 	tokenEndpointAuthMethod?: oauth.ClientAuthenticationMethod
 	/**
-	 * The scopes to request.
+	 * The scopes requested to the OAuth server.
 	 * @default ''
 	 * @example
 	 * ```typescript
@@ -53,7 +56,7 @@ export type OAuthClientOptions = {
 	 */
 	scopes?: string[] | string
 	/**
-	 * The storage to use.
+	 * The storage to use for persisting the refresh token.
 	 * @default
 	 * `new LocalStorage('oauth')`
 	 * @example
@@ -81,7 +84,7 @@ export type OAuthClientOptions = {
 	 */
 	redirectUri?: string
 	/**
-	 * The post-logout redirect URI.
+	 * The URL to redirect the user after the logout.
 	 * @default
 	 * `document.location.origin`
 	 * @example

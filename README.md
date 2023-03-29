@@ -33,26 +33,20 @@ npm install @volverjs/auth-vue --save
 
 ## Usage
 
-This library exports four main classes: `Storage`, `LocalStorage`, `SessionStorage` and `OAuthClient`.
+This library exports four main classes: `OAuthClient`, `LocalStorage` and `SessionStorage`.
 
 ```typescript
 import {
-  Storage,
+  OAuthClient
   LocalStorage,
   SessionStorage,
-  OAuthClient
 } from '@volverjs/auth-vue'
 ```
 
 ### Storage
 
-The `Storage` abstract class provides a set of common functions to simplify the `LocalStorage` and `SessionStorge` classes.
-If you need to create a custom storage class, you can extend the `Storage` class.
-
-### LocalStorage
-
-The `LocalStorage` class provides a way to interact with the browser `localStorage` API.
-All keys are scoped by the `LocalStorage` instance name.
+`LocalStorage` and `SessionStorage` provide a way to interact with the browser `localStorage` and `sessionStorage` APIs.
+All the keys are scoped by the instance name, so you can use the same key name in different storages.
 
 ```typescript
 import { LocalStorage } from '@volverjs/auth-vue'
@@ -70,39 +64,30 @@ if (LocalStorage.suppprted()) {
 }
 ```
 
-### SessionStorage
-
-The `SessionStorage` class provides a way to interact with the browser `sessionStorage` API.
-All keys are scoped by the `SessionStorage` instance name.
-
-```typescript
-import { SessionStorage } from '@volverjs/auth-vue'
-
-if (SessionStorage.suppprted()) {
-  const mySessionStorage = new SessionStorage('my-session-storage')
-  // set a specific key
-  mySessionStorage.set('my-key', 'my-value')
-  // get a specific key
-  mySessionStorage.get('my-key', 'default-value')
-  // delete a specific key
-  mySessionStorage.delete('my-key')
-  // clear all keys present in our session storage
-  mySessionStorage.clear()
-}
-```
-
 ### OAuthClient
 
-The `OAuthClient` class is a wrapper of [oauth4webapi](https://github.com/panva/oauth4webapi) to simplify the authentication process.
-It use the `Storage` to store the refresh token and the code verifier.
+The `OAuthClient` class is a wrapper of [oauth4webapi](https://github.com/panva/oauth4webapi) to simplify the authentication process of a Vue 3 application.
+By default it uses `LocalStorage` to store the refresh token and the code verifier.
 
 ```typescript
-import { OAuthClient } from '@volverjs/auth-vue'
+import { OAuthClient, SessionStorage } from '@volverjs/auth-vue'
 
 const authClient = new OAuthClient({
+  // The URL of the OAuth issuer
   url: 'https://my-oauth-server.com',
+  // The client id of the application
   clientId: 'my-client-id',
-  scopes: 'openid profile email'
+  // The client authentication method, default: 'none'
+  // Are also supported: 'client_secret_basic', 'client_secret_post' and 'private_key_jwt'
+  tokenEndpointAuthMethod: 'none',
+  // The scopes requested to the OAuth server
+  scopes: 'openid profile email',
+  // The storage to use for persisting the refresh token, default: new LocalStorage('oauth')
+  storage: new SessionStorage('my-session-storage')
+  // The redirect URI of the application, default: document.location.origin
+  redirectUri: 'https://my-app.com/callback',
+  // The URI to redirect the user after the logout, default: document.location.origin
+  postLogoutRedirectUri: 'https://my-app.com',
 })
 ```
 
@@ -110,10 +95,11 @@ The `OAuthClient` class provides a set of methods to interact with the OAuth ser
 
 ```typescript
 // initialize the OAuth client
+// this method authomaticaly refresh the access token if the refresh token is present
 authClient.initialize()
 // redirect the user to the OAuth server to authorize the application
 authClient.authorize()
-// handle the OAuth server response
+// handle the OAuth server authorization code response
 authClient.handleCodeResponse()
 // refresh the access token
 authClient.refreshToken()
@@ -131,7 +117,7 @@ authClient.initialized // check if the OAuth client is initialized
 
 ## Plugin
 
-To use a `OAuthClient` instance inside a Vue 3 application, you can use the plugin provided by `@volverjs/auth-vue`.
+To use a `OAuthClient` instance inside a Vue 3 application, you can install the plugin with the `createOAuthClient` function.
 
 ```typescript
 import { createApp } from 'vue'
@@ -148,11 +134,11 @@ app.use(authClient, { global: true })
 app.mount('#app')
 ```
 
-With the option `global: true` the plugin will inject the `OAuthClient` instance inside the global configuration, so you can access it with `this.$vvAuth` inside components.
+With the option `global: true` the plugin will inject the `OAuthClient` instance inside the global configuration, so you can access it with `this.$vvAuth` with Vue Options API.
 
 ## Composable
 
-`@volverjs/auth-vue` also provides a composable to access the `OAuthClient` instance.
+`@volverjs/auth-vue` also provides a composable to get the `OAuthClient` instance in script setup or `setup()` function.
 
 ```vue
 <template>
