@@ -95,7 +95,8 @@ The `OAuthClient` class provides a set of methods to interact with the OAuth ser
 
 ```typescript
 // initialize the OAuth client
-// this method authomaticaly refresh the access token if the refresh token is present
+// this method authomaticaly get the access token if the refresh token is present
+// and handle the OAuth server authorization code response if the code is present
 authClient.initialize()
 // redirect the user to the OAuth server to authorize the application
 authClient.authorize()
