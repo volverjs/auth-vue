@@ -1,6 +1,11 @@
 export abstract class Storage {
 	protected baseKey: string
 
+	abstract get(name: string, defaultValue?: string): string | null | undefined
+	abstract set(name: string, value: unknown): void
+	abstract delete(name: string): void
+	abstract clear(): void
+
 	/**
 	 * Creates a new storage instance.
 	 * @param baseKey - The base key for storage.
@@ -38,11 +43,4 @@ export abstract class Storage {
 
 		return key
 	}
-}
-
-export interface Storage {
-	get(name: string, defaultValue?: string): string | null | undefined
-	set(name: string, value: unknown): void
-	delete(name: string): void
-	clear(): void
 }
