@@ -74,7 +74,7 @@ export class LocalStorage extends Storage {
 		this._checkSupport()
 		const base = this.key()
 		for (const key in localStorage) {
-			if (key.indexOf(base) === 0) {
+			if (key.startsWith(base)) {
 				this.delete(key)
 			}
 		}

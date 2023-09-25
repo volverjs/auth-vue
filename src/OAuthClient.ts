@@ -100,6 +100,8 @@ export type OAuthClientOptions = {
 	postLogoutRedirectUri?: string
 }
 
+type UndefinedOrNullString = string | undefined | null
+
 export class OAuthClient {
 	private _client: oauth.Client
 	private _issuer: URL
@@ -107,9 +109,9 @@ export class OAuthClient {
 	private _storage: Storage
 	private _redirectUri: string
 	private _postLogoutRedirectUri: string
-	private _refreshToken: Ref<string | undefined | null> = ref()
-	private _accessToken: Ref<string | undefined | null> = ref()
-	private _codeVerifier: Ref<string | undefined | null> = ref()
+	private _refreshToken: Ref<UndefinedOrNullString> = ref()
+	private _accessToken: Ref<UndefinedOrNullString> = ref()
+	private _codeVerifier: Ref<UndefinedOrNullString> = ref()
 	private _authorizationServer?: oauth.AuthorizationServer
 
 	constructor(options: OAuthClientOptions) {
