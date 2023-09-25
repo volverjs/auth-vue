@@ -1,4 +1,5 @@
 import * as oauth from 'oauth4webapi'
+import type { TokenEndpointRequestOptions } from 'oauth4webapi'
 import { computed, readonly, ref, watch, type Ref } from 'vue'
 import type { Storage } from './Storage'
 import { LocalStorage } from './LocalStorage'
@@ -315,7 +316,7 @@ export class OAuthClient {
 	 * ```
 	 * @returns The new access token.
 	 */
-	public refreshToken = async () => {
+	public refreshToken = async (options?: TokenEndpointRequestOptions) => {
 		if (!this._authorizationServer) {
 			throw new Error('OAuthClient not initialized')
 		}
@@ -326,6 +327,7 @@ export class OAuthClient {
 			this._authorizationServer,
 			this._client,
 			this._refreshToken.value,
+			options,
 		)
 		const result = await oauth.processRefreshTokenResponse(
 			this._authorizationServer,
