@@ -1,4 +1,5 @@
 import * as oauth from 'oauth4webapi'
+import type { TokenEndpointRequestOptions } from 'oauth4webapi'
 import { computed, readonly, ref, watch, type Ref } from 'vue'
 import type { Storage } from './Storage'
 import { LocalStorage } from './LocalStorage'
@@ -99,6 +100,8 @@ export type OAuthClientOptions = {
 	postLogoutRedirectUri?: string
 }
 
+type UndefinedOrNullString = string | undefined | null
+
 export class OAuthClient {
 	private _client: oauth.Client
 	private _issuer: URL
@@ -106,9 +109,9 @@ export class OAuthClient {
 	private _storage: Storage
 	private _redirectUri: string
 	private _postLogoutRedirectUri: string
-	private _refreshToken: Ref<string | undefined | null> = ref()
-	private _accessToken: Ref<string | undefined | null> = ref()
-	private _codeVerifier: Ref<string | undefined | null> = ref()
+	private _refreshToken: Ref<UndefinedOrNullString> = ref()
+	private _accessToken: Ref<UndefinedOrNullString> = ref()
+	private _codeVerifier: Ref<UndefinedOrNullString> = ref()
 	private _authorizationServer?: oauth.AuthorizationServer
 
 	constructor(options: OAuthClientOptions) {
@@ -199,14 +202,14 @@ export class OAuthClient {
 	 * await client.initialize()
 	 * ```
 	 */
-	public initialize = async () => {
+	public initialize = async (options?: TokenEndpointRequestOptions) => {
 		this._authorizationServer = await oauth
 			.discoveryRequest(this._issuer)
 			.then((response) =>
 				oauth.processDiscoveryResponse(this._issuer, response),
 			)
 		if (this._refreshToken.value) {
-			return await this.refreshToken()
+			return await this.refreshToken(options)
 		}
 		if (this._codeVerifier.value) {
 			const urlParams = new URLSearchParams(window.location.search)
@@ -315,7 +318,7 @@ export class OAuthClient {
 	 * ```
 	 * @returns The new access token.
 	 */
-	public refreshToken = async () => {
+	public refreshToken = async (options?: TokenEndpointRequestOptions) => {
 		if (!this._authorizationServer) {
 			throw new Error('OAuthClient not initialized')
 		}
@@ -326,6 +329,7 @@ export class OAuthClient {
 			this._authorizationServer,
 			this._client,
 			this._refreshToken.value,
+			options,
 		)
 		const result = await oauth.processRefreshTokenResponse(
 			this._authorizationServer,

@@ -1,5 +1,3 @@
-[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=volverjs_auth-vue&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=volverjs_auth-vue) [![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=volverjs_auth-vue&metric=sqale_rating)](https://sonarcloud.io/summary/new_code?id=volverjs_auth-vue) [![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=volverjs_auth-vue&metric=security_rating)](https://sonarcloud.io/summary/new_code?id=volverjs_auth-vue) [![Depfu](https://badges.depfu.com/badges/0d2dd36acf771e7b66ddbb861ec96160/status.svg)](https://depfu.com) [![Depfu](https://badges.depfu.com/badges/0d2dd36acf771e7b66ddbb861ec96160/overview.svg)](https://depfu.com/github/volverjs/auth-vue?project_id=38568)
-
 <div align="center">
   
 [![volverjs](docs/static/volverjs-auth.svg)](https://volverjs.github.io/auth-vue)
@@ -7,6 +5,8 @@
 ## @volverjs/auth-vue
 
 `oauth` `openid` `vue3` `storage`
+  
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=volverjs_auth-vue&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=volverjs_auth-vue) [![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=volverjs_auth-vue&metric=sqale_rating)](https://sonarcloud.io/summary/new_code?id=volverjs_auth-vue) [![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=volverjs_auth-vue&metric=security_rating)](https://sonarcloud.io/summary/new_code?id=volverjs_auth-vue) [![Depfu](https://badges.depfu.com/badges/0d2dd36acf771e7b66ddbb861ec96160/status.svg)](https://depfu.com) [![Depfu](https://badges.depfu.com/badges/0d2dd36acf771e7b66ddbb861ec96160/overview.svg)](https://depfu.com/github/volverjs/auth-vue?project_id=38568)
 
 <br>
 
