@@ -1,7 +1,7 @@
 {
     "name": "@volverjs/auth-vue",
     "description": "Simple OAuth 2 / OpenID Connect plugin for Vue 3",
-    "author": "24/Consulting",
+    "author": "8 Wave",
     "license": "MIT",
     "keywords": [
         "oauth",
