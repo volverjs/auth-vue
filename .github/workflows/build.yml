@@ -23,7 +23,7 @@ jobs:
             - name: Pack package
               run: pnpm pack
             - name: Upload artifact
-              uses: actions/upload-artifact@v3
+              uses: actions/upload-artifact@v4
               with:
                   name: package
                   path: '*.tgz'
