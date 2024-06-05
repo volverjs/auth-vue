@@ -1,11 +1,11 @@
 <div align="center">
-  
+
 [![volverjs](docs/static/volverjs-auth.svg)](https://volverjs.github.io/auth-vue)
 
 ## @volverjs/auth-vue
 
 `oauth` `openid` `vue3` `storage`
-  
+
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=volverjs_auth-vue&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=volverjs_auth-vue) [![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=volverjs_auth-vue&metric=sqale_rating)](https://sonarcloud.io/summary/new_code?id=volverjs_auth-vue) [![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=volverjs_auth-vue&metric=security_rating)](https://sonarcloud.io/summary/new_code?id=volverjs_auth-vue) [![Depfu](https://badges.depfu.com/badges/0d2dd36acf771e7b66ddbb861ec96160/status.svg)](https://depfu.com) [![Depfu](https://badges.depfu.com/badges/0d2dd36acf771e7b66ddbb861ec96160/overview.svg)](https://depfu.com/github/volverjs/auth-vue?project_id=38568)
 
 <br>
@@ -38,11 +38,7 @@ npm install @volverjs/auth-vue --save
 This library exports four main classes: `OAuthClient`, `LocalStorage` and `SessionStorage`.
 
 ```typescript
-import {
-  OAuthClient
-  LocalStorage,
-  SessionStorage,
-} from '@volverjs/auth-vue'
+import { OAuthClient, LocalStorage, SessionStorage } from '@volverjs/auth-vue'
 ```
 
 ### Storage
@@ -54,15 +50,15 @@ All the keys are scoped by the instance name, so you can use the same key name i
 import { LocalStorage } from '@volverjs/auth-vue'
 
 if (LocalStorage.suppprted()) {
-  const myLocalStorage = new LocalStorage('my-local-storage')
-  // set a specific key
-  myLocalStorage.set('my-key', 'my-value')
-  // get a specific key
-  myLocalStorage.get('my-key', 'default-value')
-  // delete a specific key
-  myLocalStorage.delete('my-key')
-  // clear all keys present in our storage
-  myLocalStorage.clear()
+    const myLocalStorage = new LocalStorage('my-local-storage')
+    // set a specific key
+    myLocalStorage.set('my-key', 'my-value')
+    // get a specific key
+    myLocalStorage.get('my-key', 'default-value')
+    // delete a specific key
+    myLocalStorage.delete('my-key')
+    // clear all keys present in our storage
+    myLocalStorage.clear()
 }
 ```
 
@@ -75,21 +71,21 @@ By default it uses `LocalStorage` to store the refresh token and the code verifi
 import { OAuthClient, SessionStorage } from '@volverjs/auth-vue'
 
 const authClient = new OAuthClient({
-  // The URL of the OAuth issuer
-  url: 'https://my-oauth-server.com',
-  // The client id of the application
-  clientId: 'my-client-id',
-  // The client authentication method, default: 'none'
-  // Are also supported: 'client_secret_basic', 'client_secret_post' and 'private_key_jwt'
-  tokenEndpointAuthMethod: 'none',
-  // The scopes requested to the OAuth server
-  scopes: 'openid profile email',
-  // The storage to use for persisting the refresh token, default: new LocalStorage('oauth')
-  storage: new SessionStorage('my-session-storage')
-  // The redirect URI of the application, default: document.location.origin
-  redirectUri: 'https://my-app.com/callback',
-  // The URI to redirect the user after the logout, default: document.location.origin
-  postLogoutRedirectUri: 'https://my-app.com',
+    // The URL of the OAuth issuer
+    url: 'https://my-oauth-server.com',
+    // The client id of the application
+    clientId: 'my-client-id',
+    // The client authentication method, default: 'none'
+    // Are also supported: 'client_secret_basic', 'client_secret_post' and 'private_key_jwt'
+    tokenEndpointAuthMethod: 'none',
+    // The scopes requested to the OAuth server
+    scopes: 'openid profile email',
+    // The storage to use for persisting the refresh token, default: new LocalStorage('oauth')
+    storage: new SessionStorage('my-session-storage'),
+    // The redirect URI of the application, default: document.location.origin
+    redirectUri: 'https://my-app.com/callback',
+    // The URI to redirect the user after the logout, default: document.location.origin
+    postLogoutRedirectUri: 'https://my-app.com',
 })
 ```
 
@@ -128,9 +124,9 @@ import { createOAuthClient } from '@volverjs/auth-vue'
 
 const app = createApp(App)
 const authClient = createOAuthClient({
-  url: 'https://my-oauth-server.com',
-  clientId: 'my-client-id',
-  scopes: 'openid profile email'
+    url: 'https://my-oauth-server.com',
+    clientId: 'my-client-id',
+    scopes: 'openid profile email',
 })
 
 app.use(authClient, { global: true })
@@ -144,18 +140,22 @@ With the option `global: true` the plugin will inject the `OAuthClient` instance
 `@volverjs/auth-vue` also provides a composable to get the `OAuthClient` instance in script setup or `setup()` function.
 
 ```vue
-<template>
-  <div>
-    <button v-if="!loggedIn" @click="authorize">Login</button>
-    <button v-else @click="logout">Logout</button>
-  </div>
-</template>
-
 <script setup lang="ts">
-  import { useAuth } from '@volverjs/auth-vue'
-  const client = useOAuthClient()
-  const { loggedIn, authorize, logout } = client
+import { useAuth } from '@volverjs/auth-vue'
+const client = useOAuthClient()
+const { loggedIn, authorize, logout } = client
 </script>
+
+<template>
+    <div>
+        <button v-if="!loggedIn" @click="authorize">
+            Login
+        </button>
+        <button v-else @click="logout">
+            Logout
+        </button>
+    </div>
+</template>
 ```
 
 ## Acknoledgements
