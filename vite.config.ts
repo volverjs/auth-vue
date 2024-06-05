@@ -1,5 +1,5 @@
 import { defineConfig } from 'vitest/config'
-import ESLint from 'vite-plugin-eslint'
+import ESLint from '@nabla/vite-plugin-eslint'
 import dts from 'vite-plugin-dts'
 import path from 'path'
 

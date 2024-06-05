@@ -5,17 +5,6 @@ import { OAuthClient } from '../src/OAuthClient'
 
 const fetchMock = createFetchMock(vi)
 
-global.crypto = {
-	// @ts-ignore: Mocking window.crypto
-	getRandomValues: (arr) => crypto.randomBytes(arr.length),
-	// @ts-ignore: Mocking window.crypto
-	subtle: {
-		digest: () => {
-			return Promise.resolve(new ArrayBuffer(0))
-		},
-	},
-}
-
 const response = JSON.stringify({
 	token_endpoint: 'http://dummy.com/oauth2/v2.0/token',
 	token_endpoint_auth_methods_supported: [
