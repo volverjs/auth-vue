@@ -9,7 +9,6 @@ export default antfu({
     vue: true,
     node: true,
     yaml: false,
-    ignore: ['.vscode', 'dist', 'node_modules'],
     stylistic: {
         indent: 4,
         quotes: 'single',
@@ -20,4 +19,6 @@ export default antfu({
         'style/no-mixed-spaces-and-tabs': ['error', 'smart-tabs'],
         'sort-imports': 'off',
     },
+}, {
+    ignores: ['.vscode', 'dist', 'node_modules'],
 })
