@@ -202,7 +202,7 @@ export class OAuthClient {
      * await client.initialize()
      * ```
      */
-    public initialize = async (options?: TokenEndpointRequestOptions) => {
+    public initialize = async (options?: TokenEndpointRequestOptions & { accessToken?: string }) => {
         this._authorizationServer = await oauth
             .discoveryRequest(this._issuer)
             .then(response =>
@@ -214,6 +214,10 @@ export class OAuthClient {
         if (this._codeVerifier.value) {
             const urlParams = new URLSearchParams(window.location.search)
             return await this.handleCodeResponse(urlParams)
+        }
+        if (options?.accessToken) {
+            this._accessToken.value = options.accessToken
+            return Promise.resolve()
         }
         return Promise.resolve()
     }
