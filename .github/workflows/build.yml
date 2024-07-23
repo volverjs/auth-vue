@@ -8,20 +8,27 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v4
+
             - uses: pnpm/action-setup@v4
+
             - name: Use Node.js ${{ matrix.node-version }}
               uses: actions/setup-node@v4
               with:
                   node-version: ${{ matrix.node-version }}
                   cache: 'pnpm'
+                
             - name: Install dependencies
               run: pnpm install --no-frozen-lockfile
+
             - name: Build release
               run: pnpm build
+
             - name: Bump version with release tag name
               run: pnpm version --no-git-tag-version ${{ github.event.release.tag_name }}
+
             - name: Pack package
               run: pnpm pack
+              
             - name: Upload artifact
               uses: actions/upload-artifact@v4
               with:
