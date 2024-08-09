@@ -99,7 +99,7 @@
         "node-fetch": "^3.3.2",
         "typescript": "^5.5.4",
         "vite": "^5.3.4",
-        "vite-plugin-dts": "^3.9.1",
+        "vite-plugin-dts": "^4.0.1",
         "vitest": "^2.0.4",
         "vitest-fetch-mock": "^0.3.0",
         "vue-tsc": "^2.0.28"
