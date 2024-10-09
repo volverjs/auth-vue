@@ -87,7 +87,7 @@
         "credits": "npx @opengovsg/credits-generator"
     },
     "dependencies": {
-        "oauth4webapi": "^2.11.1",
+        "oauth4webapi": "^3.0.0",
         "vue": "^3.4.33"
     },
     "devDependencies": {
