@@ -87,21 +87,21 @@
         "credits": "npx @opengovsg/credits-generator"
     },
     "dependencies": {
-        "oauth4webapi": "^2.11.1",
+        "oauth4webapi": "^3.8.2",
         "vue": "^3.4.33"
     },
     "devDependencies": {
-        "@antfu/eslint-config": "^3.0.0",
+        "@antfu/eslint-config": "^5.4.1",
         "@nabla/vite-plugin-eslint": "^2.0.4",
         "copy": "^0.3.2",
         "eslint": "^9.7.0",
-        "happy-dom": "^15.0.0",
+        "happy-dom": "^19.0.2",
         "node-fetch": "^3.3.2",
         "typescript": "^5.5.4",
-        "vite": "^5.3.4",
+        "vite": "^7.1.7",
         "vite-plugin-dts": "^4.0.1",
-        "vitest": "^2.0.4",
-        "vitest-fetch-mock": "^0.3.0",
-        "vue-tsc": "^2.0.28"
+        "vitest": "^3.2.4",
+        "vitest-fetch-mock": "^0.4.5",
+        "vue-tsc": "^3.1.0"
     }
 }
