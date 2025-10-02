@@ -1,7 +1,7 @@
 import path from 'node:path'
-import { defineConfig } from 'vitest/config'
 import ESLint from '@nabla/vite-plugin-eslint'
 import dts from 'vite-plugin-dts'
+import { defineConfig } from 'vitest/config'
 
 // https://vitejs.dev/config/
 export default () => {

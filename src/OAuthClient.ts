@@ -1,7 +1,8 @@
-import * as oauth from 'oauth4webapi'
 import type { TokenEndpointRequestOptions } from 'oauth4webapi'
-import { computed, readonly, ref, watch, type Ref } from 'vue'
+import type { Ref } from 'vue'
 import type { Storage } from './Storage'
+import * as oauth from 'oauth4webapi'
+import { computed, readonly, ref, watch } from 'vue'
 import { LocalStorage } from './LocalStorage'
 
 export type OAuthClientOptions = {
@@ -122,15 +123,15 @@ export class OAuthClient {
 				options.tokenEndpointAuthMethod ?? 'none',
         }
         this._scope
-			= typeof options.scopes === 'string'
-			    ? options.scopes
-			    : options.scopes?.join(' ') ?? ''
+            = typeof options.scopes === 'string'
+                ? options.scopes
+                : options.scopes?.join(' ') ?? ''
         this._storage = options.storage ?? new LocalStorage('oauth')
         this._refreshToken.value = this._storage.get('refresh_token')
         this._codeVerifier.value = this._storage.get('code_verifier')
         this._redirectUri = options.redirectUri ?? document.location.origin
         this._postLogoutRedirectUri
-			= options.postLogoutRedirectUri ?? document.location.origin
+            = options.postLogoutRedirectUri ?? document.location.origin
 
         watch(this._refreshToken, (newValue) => {
             this._storage.set('refresh_token', newValue)
@@ -168,13 +169,13 @@ export class OAuthClient {
         }
         if (options.tokenEndpointAuthMethod) {
             this._client.token_endpoint_auth_method
-				= options.tokenEndpointAuthMethod
+                = options.tokenEndpointAuthMethod
         }
         if (options.scopes) {
             this._scope
-				= typeof options.scopes === 'string'
-				    ? options.scopes
-				    : options.scopes?.join(' ') ?? ''
+                = typeof options.scopes === 'string'
+                    ? options.scopes
+                    : options.scopes?.join(' ') ?? ''
         }
         if (options.storage) {
             this._storage = options.storage
