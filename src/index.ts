@@ -1,10 +1,12 @@
-import { getCurrentInstance, inject, type App, type InjectionKey } from 'vue'
-import { OAuthClient, type OAuthClientOptions } from './OAuthClient'
+import type { App, InjectionKey } from 'vue'
+import type { OAuthClientOptions } from './OAuthClient'
+import { getCurrentInstance, inject } from 'vue'
+import { OAuthClient } from './OAuthClient'
 
 export { OAuthClient }
-export { Storage } from './Storage'
 export { LocalStorage } from './LocalStorage'
 export { SessionStorage } from './SessionStorage'
+export { Storage } from './Storage'
 
 export const authClientInjectionKey = Symbol('') as InjectionKey<OAuthClient>
 

@@ -1,4 +1,4 @@
-import { describe, beforeEach, vi, it, expect } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import createFetchMock from 'vitest-fetch-mock'
 import { OAuthClient } from '../src/OAuthClient'
 

@@ -2,7 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.0.3] - 2023-09-25
+## [0.0.3] - 2024-10-02
+
 ### Added 
 - `refreshToken()` options parameter.
 

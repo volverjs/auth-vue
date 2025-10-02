@@ -38,7 +38,7 @@ npm install @volverjs/auth-vue --save
 This library exports four main classes: `OAuthClient`, `LocalStorage` and `SessionStorage`.
 
 ```typescript
-import { OAuthClient, LocalStorage, SessionStorage } from '@volverjs/auth-vue'
+import { LocalStorage, OAuthClient, SessionStorage } from '@volverjs/auth-vue'
 ```
 
 ### Storage
@@ -119,8 +119,8 @@ authClient.initialized // check if the OAuth client is initialized
 To use a `OAuthClient` instance inside a Vue 3 application, you can install the plugin with the `createOAuthClient` function.
 
 ```typescript
-import { createApp } from 'vue'
 import { createOAuthClient } from '@volverjs/auth-vue'
+import { createApp } from 'vue'
 
 const app = createApp(App)
 const authClient = createOAuthClient({
@@ -142,6 +142,7 @@ With the option `global: true` the plugin will inject the `OAuthClient` instance
 ```vue
 <script setup lang="ts">
 import { useAuth } from '@volverjs/auth-vue'
+
 const client = useOAuthClient()
 const { loggedIn, authorize, logout } = client
 </script>
