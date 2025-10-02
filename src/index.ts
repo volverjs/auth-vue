@@ -1,11 +1,5 @@
 import type { App, InjectionKey } from 'vue'
 import type { OAuthClientOptions } from './OAuthClient'
-import {
-    ClientSecretBasic,
-    ClientSecretPost,
-    PrivateKeyJwt,
-    TlsClientAuth,
-} from 'oauth4webapi'
 import { getCurrentInstance, inject } from 'vue'
 import { OAuthClient } from './OAuthClient'
 
@@ -18,7 +12,7 @@ export {
     ClientSecretPost,
     PrivateKeyJwt,
     TlsClientAuth,
-}
+} from 'oauth4webapi'
 
 export const authClientInjectionKey = Symbol('') as InjectionKey<OAuthClient>
 
@@ -89,5 +83,3 @@ export function useOAuthClient(options?: OAuthClientOptions) {
     }
     return client
 }
-
-export {}
