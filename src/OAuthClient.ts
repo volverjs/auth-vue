@@ -29,8 +29,8 @@ export type OAuthClientOptions = {
      */
     clientId: string
     /**
-     * The client authentication method, see {@link oauth.ClientAuthenticationMethod}
-     * @default 'none' public client
+     * The client authentication method, see {@link oauth.ClientAuth}
+     * @default 'None()' public client
      * @see [RFC 6749 - The OAuth 2.0 Authorization Framework](https://www.rfc-editor.org/rfc/rfc6749.html#section-2.3)
      * @see [OpenID Connect Core 1.0](https://openid.net/specs/openid-connect-core-1_0.html#ClientAuthentication)
      * @see [OAuth Token Endpoint Authentication Methods](https://www.iana.org/assignments/oauth-parameters/oauth-parameters.xhtml#token-endpoint-auth-method)
@@ -39,11 +39,11 @@ export type OAuthClientOptions = {
      * const client = new OAuthClient({
      *  url: 'https://example.com',
      * 	clientId: 'my-client-id',
-     *  tokenEndpointAuthMethod: 'client_secret_basic'
+     *  clientAuthentication: ClientSecretBasic('my-client-secret')
      * })
      * ```
      */
-    tokenEndpointAuthMethod?: oauth.ClientAuthenticationMethod
+    clientAuthentication?: oauth.ClientAuth
     /**
      * The scopes requested to the OAuth server.
      * @default ''
@@ -105,6 +105,7 @@ type UndefinedOrNullString = string | undefined | null
 
 export class OAuthClient {
     private _client: oauth.Client
+    private _clientAuth: oauth.ClientAuth
     private _issuer: URL
     private _scope: string
     private _storage: Storage
@@ -117,10 +118,9 @@ export class OAuthClient {
 
     constructor(options: OAuthClientOptions) {
         this._issuer = new URL(options.url)
+        this._clientAuth = options.clientAuthentication ?? oauth.None()
         this._client = {
             client_id: options.clientId,
-            token_endpoint_auth_method:
-				options.tokenEndpointAuthMethod ?? 'none',
         }
         this._scope
             = typeof options.scopes === 'string'
@@ -167,9 +167,8 @@ export class OAuthClient {
         if (options.clientId) {
             this._client.client_id = options.clientId
         }
-        if (options.tokenEndpointAuthMethod) {
-            this._client.token_endpoint_auth_method
-                = options.tokenEndpointAuthMethod
+        if (options.clientAuthentication) {
+            this._clientAuth = options.clientAuthentication
         }
         if (options.scopes) {
             this._scope
@@ -262,7 +261,7 @@ export class OAuthClient {
      * @throws If the client is not initialized.
      * @param urlParams - The URL parameters.
      */
-    public handleCodeResponse = async (urlParams: URLSearchParams) => {
+    public handleCodeResponse = async (urlParams: URLSearchParams, options?: oauth.ProcessAuthorizationCodeResponseOptions) => {
         if (!this._authorizationServer) {
             throw new Error('OAuthClient not initialized')
         }
@@ -273,40 +272,36 @@ export class OAuthClient {
             this._codeVerifier.value = undefined
             return false
         }
-        const params = oauth.validateAuthResponse(
-            this._authorizationServer,
-            this._client,
-            urlParams,
-            oauth.expectNoState,
-        )
-        if (oauth.isOAuth2Error(params)) {
+        try {
+            const params = oauth.validateAuthResponse(
+                this._authorizationServer,
+                this._client,
+                urlParams,
+                oauth.expectNoState,
+            )
+            const response = await oauth.authorizationCodeGrantRequest(
+                this._authorizationServer,
+                this._client,
+                this._clientAuth,
+                params,
+                this._redirectUri,
+                this._codeVerifier.value,
+            )
+            const result = await oauth.processAuthorizationCodeResponse(
+                this._authorizationServer,
+                this._client,
+                response,
+                options,
+            )
             this._codeVerifier.value = undefined
-            throw new Error('OAuth 2.0 redirect error')
+            this._accessToken.value = result.access_token
+            this._refreshToken.value = result.refresh_token
+            return this.accessToken
         }
-        const response = await oauth.authorizationCodeGrantRequest(
-            this._authorizationServer,
-            this._client,
-            params,
-            this._redirectUri,
-            this._codeVerifier.value,
-        )
-        if (oauth.parseWwwAuthenticateChallenges(response)) {
+        catch (e) {
             this._codeVerifier.value = undefined
-            throw new Error('www-authenticate challenges error')
+            throw e
         }
-        const result = await oauth.processAuthorizationCodeOpenIDResponse(
-            this._authorizationServer,
-            this._client,
-            response,
-        )
-        if (oauth.isOAuth2Error(result)) {
-            this._codeVerifier.value = undefined
-            throw new Error('OAuth 2.0 response body error')
-        }
-        this._codeVerifier.value = undefined
-        this._accessToken.value = result.access_token
-        this._refreshToken.value = result.refresh_token
-        return this.accessToken
     }
 
     /**
@@ -333,6 +328,7 @@ export class OAuthClient {
         const response = await oauth.refreshTokenGrantRequest(
             this._authorizationServer,
             this._client,
+            this._clientAuth,
             this._refreshToken.value,
             options,
         )
@@ -341,9 +337,6 @@ export class OAuthClient {
             this._client,
             response,
         )
-        if (oauth.isOAuth2Error(result)) {
-            throw new Error('OAuth 2.0 response body error')
-        }
         this._accessToken.value = result.access_token
         this._refreshToken.value = result.refresh_token
         return this.accessToken

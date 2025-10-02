@@ -68,16 +68,16 @@ The `OAuthClient` class is a wrapper of [oauth4webapi](https://github.com/panva/
 By default it uses `LocalStorage` to store the refresh token and the code verifier.
 
 ```typescript
-import { OAuthClient, SessionStorage } from '@volverjs/auth-vue'
+import { ClientSecretBasic, OAuthClient, SessionStorage } from '@volverjs/auth-vue'
 
 const authClient = new OAuthClient({
     // The URL of the OAuth issuer
     url: 'https://my-oauth-server.com',
     // The client id of the application
     clientId: 'my-client-id',
-    // The client authentication method, default: 'none'
-    // Are also supported: 'client_secret_basic', 'client_secret_post' and 'private_key_jwt'
-    tokenEndpointAuthMethod: 'none',
+    // The client authentication method, default: None()
+    // Are also supported: ClientSecretPost, ClientSecretBasic, PrivateKeyJwt, None, TlsClientAuth
+    clientAuthentication: ClientSecretBasic('my-client-secret'),
     // The scopes requested to the OAuth server
     scopes: 'openid profile email',
     // The storage to use for persisting the refresh token, default: new LocalStorage('oauth')

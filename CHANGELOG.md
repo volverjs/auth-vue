@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.0] - 2024-10-02
+
+### Fixed
+- Upgrade of `oauth4webapi` to version 3.x, which includes breaking changes.
+
+### Changed
+- Removed `tokenEndpointAuthMethod` option from `OAuthClient` constructor, use `clientAuthentication` instead.
+
 ## [0.0.3] - 2024-10-02
 
 ### Added 
