@@ -1,48 +1,46 @@
 export abstract class Storage {
-	protected baseKey: string
+    protected baseKey: string
 
-	/**
-	 * Creates a new storage instance.
-	 * @param baseKey - The base key for storage.
-	 */
-	constructor(baseKey = '') {
-		this.baseKey = baseKey
-	}
+    abstract get(name: string, defaultValue?: string): string | null | undefined
+    abstract set(name: string, value: unknown): void
+    abstract delete(name: string): void
+    abstract clear(): void
 
-	/**
-	 * Determines if the current browser supports this storage type.
-	 * @returns true if the storage type is supported.
-	 */
-	public static supported() {
-		return true
-	}
+    /**
+     * Creates a new storage instance.
+     * @param baseKey - The base key for storage.
+     */
+    constructor(baseKey = '') {
+        this.baseKey = baseKey
+    }
 
-	/**
-	 * Returns true if the storage has a value for the given key.
-	 * @param name - The storage key.
-	 * @returns true if the storage has a value for the given key.
-	 */
-	public has(name: string): boolean {
-		return this.get(name) !== null && this.get(name) !== undefined
-	}
+    /**
+     * Determines if the current browser supports this storage type.
+     * @returns true if the storage type is supported.
+     */
+    public static supported() {
+        return true
+    }
 
-	/**
-	 * Returns a scoped key for storage.
-	 * @param key - The storage key.
-	 * @returns the scoped key for storage.
-	 */
-	protected key(key = ''): string {
-		if (this.baseKey && key.indexOf(this.baseKey) === -1) {
-			return `${this.baseKey}.${key}`
-		}
+    /**
+     * Returns true if the storage has a value for the given key.
+     * @param name - The storage key.
+     * @returns true if the storage has a value for the given key.
+     */
+    public has(name: string): boolean {
+        return this.get(name) !== null && this.get(name) !== undefined
+    }
 
-		return key
-	}
-}
+    /**
+     * Returns a scoped key for storage.
+     * @param key - The storage key.
+     * @returns the scoped key for storage.
+     */
+    protected key(key = ''): string {
+        if (this.baseKey && !key.includes(this.baseKey)) {
+            return `${this.baseKey}.${key}`
+        }
 
-export interface Storage {
-	get(name: string, defaultValue?: string): string | null | undefined
-	set(name: string, value: unknown): void
-	delete(name: string): void
-	clear(): void
+        return key
+    }
 }
