@@ -7,6 +7,12 @@ export { OAuthClient }
 export { LocalStorage } from './LocalStorage'
 export { SessionStorage } from './SessionStorage'
 export { Storage } from './Storage'
+export {
+    ClientSecretBasic,
+    ClientSecretPost,
+    PrivateKeyJwt,
+    TlsClientAuth,
+} from 'oauth4webapi'
 
 export const authClientInjectionKey = Symbol('') as InjectionKey<OAuthClient>
 

@@ -9,8 +9,11 @@ importers:
   .:
     dependencies:
       oauth4webapi:
-        specifier: ^2.17.0
-        version: 2.17.0
+        specifier: ^3.8.2
+        version: 3.8.2
+      vue:
+        specifier: ^3.5.x
+        version: 3.5.22(typescript@5.9.3)
     devDependencies:
       '@antfu/eslint-config':
         specifier: ^5.4.1
@@ -45,9 +48,6 @@ importers:
       vitest-fetch-mock:
         specifier: ^0.4.5
         version: 0.4.5(vitest@3.2.4(@types/debug@4.1.12)(@types/node@20.19.19)(happy-dom@19.0.2)(yaml@2.8.1))
-      vue:
-        specifier: ^3.5.22
-        version: 3.5.22(typescript@5.9.3)
       vue-tsc:
         specifier: ^3.1.0
         version: 3.1.0(typescript@5.9.3)
@@ -691,8 +691,8 @@ packages:
     resolution: {integrity: sha512-qsaFBA3e09MIDAGFUrTk+dzqtfv1XPVz8t8d1f0ybTzrCY7BKiMC5cjrl1O/P7UmHsNyW90EYSkU/ZWpmXelag==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
 
-  '@vitest/eslint-plugin@1.3.14':
-    resolution: {integrity: sha512-CaS/6uwVT/F80CXop7CP6V+emsvNHyVzl79Y4CCRB4U3vjChUPrI/ezThN+sWG+3YO238gAOMg6rK8gcLdAImw==}
+  '@vitest/eslint-plugin@1.3.13':
+    resolution: {integrity: sha512-QfzXd1+lCY3dIqPHOZlagA2bJYoWC5yAU3adv8Gks0rHAL6FpyXKYBiyMCuU6mRrbKUMphGqwDQobinOvYgJig==}
     peerDependencies:
       eslint: '>= 8.57.0'
       typescript: '>= 5.0.0'
@@ -1900,8 +1900,8 @@ packages:
   nth-check@2.1.1:
     resolution: {integrity: sha512-lqjrjmaOoAnWfMmBPL+XNnynZh2+swxiX3WUE0s4yEHI6m+AwrK2UZOimIRl3X/4QctVqS8AiZjFqyOGrMXb/w==}
 
-  oauth4webapi@2.17.0:
-    resolution: {integrity: sha512-lbC0Z7uzAFNFyzEYRIC+pkSVvDHJTbEW+dYlSBAlCYDe6RxUkJ26bClhk8ocBZip1wfI9uKTe0fm4Ib4RHn6uQ==}
+  oauth4webapi@3.8.2:
+    resolution: {integrity: sha512-FzZZ+bht5X0FKe7Mwz3DAVAmlH1BV5blSak/lHMBKz0/EBMhX6B10GlQYI51+oRp8ObJaX0g6pXrAxZh5s8rjw==}
 
   object-deep-merge@1.0.5:
     resolution: {integrity: sha512-3DioFgOzetbxbeUq8pB2NunXo8V0n4EvqsWM/cJoI6IA9zghd7cl/2pBOuWRf4dlvA+fcg5ugFMZaN2/RuoaGg==}
@@ -2496,7 +2496,7 @@ snapshots:
       '@stylistic/eslint-plugin': 5.4.0(eslint@9.36.0)
       '@typescript-eslint/eslint-plugin': 8.45.0(@typescript-eslint/parser@8.45.0(eslint@9.36.0)(typescript@5.9.3))(eslint@9.36.0)(typescript@5.9.3)
       '@typescript-eslint/parser': 8.45.0(eslint@9.36.0)(typescript@5.9.3)
-      '@vitest/eslint-plugin': 1.3.14(eslint@9.36.0)(typescript@5.9.3)(vitest@3.2.4(@types/debug@4.1.12)(@types/node@20.19.19)(happy-dom@19.0.2)(yaml@2.8.1))
+      '@vitest/eslint-plugin': 1.3.13(eslint@9.36.0)(typescript@5.9.3)(vitest@3.2.4(@types/debug@4.1.12)(@types/node@20.19.19)(happy-dom@19.0.2)(yaml@2.8.1))
       ansis: 4.2.0
       cac: 6.7.14
       eslint: 9.36.0
@@ -3070,7 +3070,7 @@ snapshots:
       '@typescript-eslint/types': 8.45.0
       eslint-visitor-keys: 4.2.1
 
-  '@vitest/eslint-plugin@1.3.14(eslint@9.36.0)(typescript@5.9.3)(vitest@3.2.4(@types/debug@4.1.12)(@types/node@20.19.19)(happy-dom@19.0.2)(yaml@2.8.1))':
+  '@vitest/eslint-plugin@1.3.13(eslint@9.36.0)(typescript@5.9.3)(vitest@3.2.4(@types/debug@4.1.12)(@types/node@20.19.19)(happy-dom@19.0.2)(yaml@2.8.1))':
     dependencies:
       '@typescript-eslint/scope-manager': 8.45.0
       '@typescript-eslint/utils': 8.45.0(eslint@9.36.0)(typescript@5.9.3)
@@ -4547,7 +4547,7 @@ snapshots:
     dependencies:
       boolbase: 1.0.0
 
-  oauth4webapi@2.17.0: {}
+  oauth4webapi@3.8.2: {}
 
   object-deep-merge@1.0.5:
     dependencies:
