@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.1] - 2026-03-26
+
+### Changed
+- Migrated from `vite-plugin-dts` to `unplugin-dts@1.0.0-beta.6`.
+- Fixed `OauthClient` casing to `OAuthClient` in `exports` and `typesVersions`.
+- Dependencies update.
+
 ## [1.0.0] - 2024-10-02
 
 ### Fixed
@@ -32,5 +39,6 @@ All notable changes to this project will be documented in this file.
 - `OAuthClient` a class to handle OAuth2 authentication.
 
 
+[1.0.1]: https://github.com/volverjs/auth-vue/compare/v1.0.0...v1.0.1
 [0.0.3]: https://github.com/volverjs/auth-vue/compare/v0.0.2...v1.0.3
 [0.0.2]: https://github.com/volverjs/auth-vue/compare/v0.0.1...v1.0.2
