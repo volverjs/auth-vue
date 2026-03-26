@@ -2,7 +2,7 @@
     "name": "@volverjs/auth-vue",
     "type": "module",
     "version": "0.0.0",
-    "packageManager": "pnpm@10.18.1",
+    "packageManager": "pnpm@10.33.0",
     "description": "Simple OAuth 2 / OpenID Connect plugin for Vue 3",
     "author": "8 Wave S.r.l.",
     "license": "MIT",
@@ -41,8 +41,8 @@
             "import": "./dist/SessionStorage.js"
         },
         "./oauth-client": {
-            "types": "./dist/OauthClient.d.ts",
-            "import": "./dist/OauthClient.js"
+            "types": "./dist/OAuthClient.d.ts",
+            "import": "./dist/OAuthClient.js"
         }
     },
     "main": "./dist/index.js",
@@ -63,7 +63,7 @@
                 "dist/SessionStorage.d.ts"
             ],
             "oauth-client": [
-                "dist/OauthClient.d.ts"
+                "dist/OAuthClient.d.ts"
             ]
         }
     },
@@ -90,20 +90,20 @@
         "vue": "^3.5.x"
     },
     "dependencies": {
-        "oauth4webapi": "^3.8.2"
+        "oauth4webapi": "^3.8.5"
     },
     "devDependencies": {
-        "@antfu/eslint-config": "^7.0.0",
-        "@nabla/vite-plugin-eslint": "^2.0.6",
+        "@antfu/eslint-config": "^7.7.3",
+        "@nabla/vite-plugin-eslint": "^3.0.1",
         "copy": "^0.3.2",
-        "eslint": "^9.37.0",
-        "happy-dom": "^20.0.0",
+        "eslint": "^10.1.0",
+        "happy-dom": "^20.8.8",
         "node-fetch": "^3.3.2",
-        "typescript": "^5.9.3",
-        "vite": "^7.1.9",
-        "vite-plugin-dts": "^4.5.4",
-        "vitest": "^4.0.1",
+        "typescript": "^6.0.2",
+        "unplugin-dts": "1.0.0-beta.6",
+        "vite": "^8.0.3",
+        "vitest": "^4.1.1",
         "vitest-fetch-mock": "^0.4.5",
-        "vue-tsc": "^3.1.1"
+        "vue-tsc": "^3.2.6"
     }
 }

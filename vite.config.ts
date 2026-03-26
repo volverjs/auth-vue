@@ -1,6 +1,6 @@
 import path from 'node:path'
 import ESLint from '@nabla/vite-plugin-eslint'
-import dts from 'vite-plugin-dts'
+import dts from 'unplugin-dts/vite'
 import { defineConfig } from 'vitest/config'
 
 // https://vitejs.dev/config/
@@ -44,10 +44,8 @@ export default () => {
             // https://github.com/gxmari007/vite-plugin-eslint
             ESLint(),
 
-            // https://github.com/qmhc/vite-plugin-dts
-            dts({
-                insertTypesEntry: true,
-            }),
+            // https://github.com/qmhc/unplugin-dts
+            dts({ compilerOptions: { rootDir: path.resolve(__dirname, 'src') } }),
         ],
     })
 }
