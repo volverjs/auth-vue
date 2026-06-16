@@ -35,7 +35,7 @@ npm install @volverjs/auth-vue --save
 
 ## Usage
 
-This library exports four main classes: `OAuthClient`, `LocalStorage` and `SessionStorage`.
+This library exports three main classes: `OAuthClient`, `LocalStorage` and `SessionStorage` (plus the abstract `Storage` base class).
 
 ```typescript
 import { LocalStorage, OAuthClient, SessionStorage } from '@volverjs/auth-vue'
@@ -49,7 +49,7 @@ All the keys are scoped by the instance name, so you can use the same key name i
 ```typescript
 import { LocalStorage } from '@volverjs/auth-vue'
 
-if (LocalStorage.suppprted()) {
+if (LocalStorage.supported()) {
     const myLocalStorage = new LocalStorage('my-local-storage')
     // set a specific key
     myLocalStorage.set('my-key', 'my-value')
@@ -65,7 +65,13 @@ if (LocalStorage.suppprted()) {
 ### OAuthClient
 
 The `OAuthClient` class is a wrapper of [oauth4webapi](https://github.com/panva/oauth4webapi) to simplify the authentication process of a Vue 3 application.
-By default it uses `LocalStorage` to store the refresh token and the code verifier.
+By default it uses `LocalStorage` to store the refresh token, the code verifier and the PKCE/OIDC `state` and `nonce` values.
+
+> [!WARNING]
+> By default the refresh token is persisted in `localStorage`, which survives
+> tab closes and browser restarts and is readable by any JavaScript on the
+> origin (a single XSS flaw exposes it). Set `storageType: 'session'` (or
+> provide a custom storage) when you don't need persistent, cross-tab sessions.
 
 ```typescript
 import { ClientSecretBasic, OAuthClient, SessionStorage } from '@volverjs/auth-vue'
@@ -80,7 +86,11 @@ const authClient = new OAuthClient({
     clientAuthentication: ClientSecretBasic('my-client-secret'),
     // The scopes requested to the OAuth server
     scopes: 'openid profile email',
+    // Convenience setting to choose the storage, default: 'local'
+    // Use 'session' to persist into sessionStorage instead of localStorage
+    storageType: 'session',
     // The storage to use for persisting the refresh token, default: new LocalStorage('oauth')
+    // Takes precedence over `storageType` when provided
     storage: new SessionStorage('my-session-storage'),
     // The redirect URI of the application, default: document.location.origin
     redirectUri: 'https://my-app.com/callback',
@@ -89,19 +99,20 @@ const authClient = new OAuthClient({
 })
 ```
 
-The `OAuthClient` class provides a set of methods to interact with the OAuth server:
+The `OAuthClient` class provides a set of (async) methods to interact with the OAuth server:
 
 ```typescript
-// initialize the OAuth client
-// this method authomaticaly get the access token if the refresh token is present
-// and handle the OAuth server authorization code response if the code is present
-authClient.initialize()
+// initialize the OAuth client (performs OAuth server discovery)
+// when a code is present in the URL it completes the authorization code flow,
+// otherwise it refreshes the access token if a refresh token is available
+await authClient.initialize()
 // redirect the user to the OAuth server to authorize the application
-authClient.authorize()
-// handle the OAuth server authorization code response
-authClient.handleCodeResponse()
+await authClient.authorize()
+// handle the OAuth server authorization code response manually
+// (usually not needed: initialize() does it for you)
+await authClient.handleCodeResponse(new URLSearchParams(window.location.search))
 // refresh the access token
-authClient.refreshToken()
+await authClient.refreshToken()
 // logout the user
 authClient.logout()
 ```
@@ -109,10 +120,17 @@ authClient.logout()
 The `OAuthClient` class also provides a set of getters to retrieve the OAuth status:
 
 ```typescript
-authClient.loggedIn // the reactive status of the user
-authClient.accessToken // the reactive value of the access token
+authClient.loggedIn // the reactive status of the user (ComputedRef<boolean>)
+authClient.accessToken // the reactive value of the access token (readonly Ref)
 authClient.initialized // check if the OAuth client is initialized
 ```
+
+### Security
+
+The authorization flow uses [PKCE](https://www.rfc-editor.org/rfc/rfc7636) (`S256`).
+A random `state` is always generated, sent and validated to protect against CSRF.
+When the `openid` scope is requested, a random `nonce` is also generated, sent and
+validated against the returned `id_token` (OpenID Connect replay protection).
 
 ## Plugin
 
@@ -141,7 +159,7 @@ With the option `global: true` the plugin will inject the `OAuthClient` instance
 
 ```vue
 <script setup lang="ts">
-import { useAuth } from '@volverjs/auth-vue'
+import { useOAuthClient } from '@volverjs/auth-vue'
 
 const client = useOAuthClient()
 const { loggedIn, authorize, logout } = client
@@ -159,7 +177,55 @@ const { loggedIn, authorize, logout } = client
 </template>
 ```
 
-## Acknoledgements
+## Migrating from 0.0.x
+
+### Client authentication
+
+The `tokenEndpointAuthMethod` option (a string) has been replaced by the
+`clientAuthentication` option, which accepts a client authentication helper from
+[oauth4webapi](https://github.com/panva/oauth4webapi) (re-exported by this package).
+
+```diff
+-import { OAuthClient } from '@volverjs/auth-vue'
++import { ClientSecretBasic, OAuthClient } from '@volverjs/auth-vue'
+
+ const authClient = new OAuthClient({
+     url: 'https://my-oauth-server.com',
+     clientId: 'my-client-id',
+-    tokenEndpointAuthMethod: 'client_secret_basic',
++    clientAuthentication: ClientSecretBasic('my-client-secret'),
+ })
+```
+
+Mapping from the old string values to the new helpers:
+
+| `tokenEndpointAuthMethod` (0.0.x) | `clientAuthentication` (1.0.0)      |
+| --------------------------------- | ----------------------------------- |
+| `'none'` (default)                | `None()` (default, can be omitted)  |
+| `'client_secret_basic'`           | `ClientSecretBasic('<secret>')`     |
+| `'client_secret_post'`            | `ClientSecretPost('<secret>')`      |
+| `'private_key_jwt'`               | `PrivateKeyJwt(<CryptoKey>)`        |
+| `'tls_client_auth'`               | `TlsClientAuth()`                   |
+
+All helpers are exported from `@volverjs/auth-vue`:
+
+```typescript
+import {
+    ClientSecretBasic,
+    ClientSecretPost,
+    PrivateKeyJwt,
+    TlsClientAuth,
+} from '@volverjs/auth-vue'
+```
+
+### Other changes
+
+- **`oauth4webapi` is now 3.x.** If you import it directly alongside this package, review its [v3 changelog](https://github.com/panva/oauth4webapi/releases).
+- **Node.js >= 20** is required.
+- **CSRF/OIDC hardening (no action required).** A `state` is now always sent and validated, and a `nonce` is sent and validated whenever the `openid` scope is requested. Make sure your authorization server accepts these standard parameters. The client now stores two additional keys (`state`, `nonce`) in the configured storage, scoped under the same base key.
+- **`initialize()` precedence.** When a `code` is present in the URL, the authorization code flow is now completed before any token refresh.
+
+## Acknowledgements
 
 `@volverjs/auth-vue` is based on [oauth4webapi](https://github.com/panva/oauth4webapi), an OpenID Connect certified client for web applications.
 

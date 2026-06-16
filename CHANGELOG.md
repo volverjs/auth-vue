@@ -2,35 +2,58 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.0.1] - 2026-03-26
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [1.0.0] - 2026-06-16
+
+First stable release.
+
+### Added
+
+- `storageType` option (`'local' | 'session'`) to choose where the refresh token, code verifier and `state`/`nonce` are persisted, without instantiating a storage manually.
+- CSRF protection: a random `state` is now generated, sent and validated during the authorization code flow.
+- OpenID Connect `nonce`: generated, sent and validated against the returned `id_token` when the `openid` scope is requested.
+- Type augmentation for `this.$vvAuth` (Vue Options API) when the plugin is installed with `{ global: true }`.
+- SSR-safe construction: no access to `document`/`window` at import or server-side rendering time.
 
 ### Changed
-- Migrated from `vite-plugin-dts` to `unplugin-dts@1.0.0-beta.6`.
-- Fixed `OauthClient` casing to `OAuthClient` in `exports` and `typesVersions`.
+
+- **Breaking:** upgraded `oauth4webapi` to 3.x.
+- **Breaking:** removed the `tokenEndpointAuthMethod` option from the `OAuthClient` constructor; use `clientAuthentication` instead.
+- `initialize()` now completes an authorization code redirect (a `code` present in the URL) before attempting a token refresh.
+- A failed token refresh now clears the stored refresh token instead of retrying a doomed refresh on every `initialize()`.
+- `loggedIn` and `accessToken` now return stable reactive references instead of a new one on every access.
+- Storage persistence is now synchronous, so values are written before a navigation (`logout`/`authorize`).
+- Migrated the type generation from `vite-plugin-dts` to `unplugin-dts`.
+- Set `moduleResolution` to `bundler` and the `vue` peer dependency to `^3.5.0`.
 - Dependencies update.
 
-## [1.0.0] - 2024-10-02
-
 ### Fixed
-- Upgrade of `oauth4webapi` to version 3.x, which includes breaking changes.
 
-### Changed
-- Removed `tokenEndpointAuthMethod` option from `OAuthClient` constructor, use `clientAuthentication` instead.
+- Storage keys are now scoped using a prefix match, preventing collisions for keys that contain the base key as a substring.
+- `Storage.clear()` no longer skips entries (keys are collected before deletion) and is a no-op when no base key is set, so it never wipes unrelated storage.
+- `Storage.has()` no longer reads the value twice.
+- Fixed `OauthClient` casing to `OAuthClient` in `exports` and `typesVersions`.
+- Corrected the README and JSDoc examples (composable import, storage support typo, `get()` returning `undefined` for a missing key).
 
 ## [0.0.3] - 2024-10-02
 
-### Added 
+### Added
+
 - `refreshToken()` options parameter.
 
 ### Fixed
+
 - Dependencies update.
 
 ## [0.0.2] - 2023-05-15
 
-### Added 
+### Added
+
 - Test with Vitest.
 
-## 0.0.1 - 2023-03-28
+## [0.0.1] - 2023-03-28
 
 ### Added
 
@@ -38,7 +61,7 @@ All notable changes to this project will be documented in this file.
 - `SessionStorage` a class to store data in the browser's session storage;
 - `OAuthClient` a class to handle OAuth2 authentication.
 
-
-[1.0.1]: https://github.com/volverjs/auth-vue/compare/v1.0.0...v1.0.1
-[0.0.3]: https://github.com/volverjs/auth-vue/compare/v0.0.2...v1.0.3
-[0.0.2]: https://github.com/volverjs/auth-vue/compare/v0.0.1...v1.0.2
+[1.0.0]: https://github.com/volverjs/auth-vue/compare/v0.0.3...v1.0.0
+[0.0.3]: https://github.com/volverjs/auth-vue/compare/v0.0.2...v0.0.3
+[0.0.2]: https://github.com/volverjs/auth-vue/compare/v0.0.1...v0.0.2
+[0.0.1]: https://github.com/volverjs/auth-vue/releases/tag/v0.0.1
