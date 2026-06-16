@@ -170,7 +170,7 @@ function createDefaultStorage(
  * @returns the current origin, or an empty string when no DOM is available.
  */
 function defaultLocationOrigin(): string {
-    return typeof globalThis.document === 'undefined'
+    return globalThis.document === undefined
         ? ''
         : globalThis.document.location.origin
 }
@@ -336,7 +336,7 @@ export class OAuthClient {
                 oauth.processDiscoveryResponse(this._issuer, response),
             )
         const urlParams
-            = typeof globalThis.window === 'undefined'
+            = globalThis.window === undefined
                 ? new URLSearchParams()
                 : new URLSearchParams(globalThis.window.location.search)
         // Completing an authorization redirect (a fresh code is in the URL and

@@ -96,8 +96,8 @@ export class SessionStorage extends Storage {
      */
     public static supported() {
         return (
-            typeof globalThis.window !== 'undefined'
-            && typeof globalThis.sessionStorage !== 'undefined'
+            globalThis.window !== undefined
+            && globalThis.sessionStorage !== undefined
         )
     }
 

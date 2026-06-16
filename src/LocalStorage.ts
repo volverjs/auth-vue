@@ -96,8 +96,8 @@ export class LocalStorage extends Storage {
      */
     public static supported() {
         return (
-            typeof globalThis.window !== 'undefined'
-            && typeof globalThis.localStorage !== 'undefined'
+            globalThis.window !== undefined
+            && globalThis.localStorage !== undefined
         )
     }
 
