@@ -16,7 +16,7 @@ export class SessionStorage extends Storage {
      */
     public get(key: string, defaultValue?: string) {
         this._checkSupport()
-        return sessionStorage.getItem(this.key(key)) ?? defaultValue
+        return globalThis.sessionStorage.getItem(this.key(key)) ?? defaultValue
     }
 
     /**
@@ -37,7 +37,7 @@ export class SessionStorage extends Storage {
             this.delete(key)
             return
         }
-        sessionStorage.setItem(this.key(key), value)
+        globalThis.sessionStorage.setItem(this.key(key), value)
     }
 
     /**
@@ -50,12 +50,12 @@ export class SessionStorage extends Storage {
      * storage.set('test', 'value')
      * expect(storage.get('test')).toBe('value')
      * storage.delete('test')
-     * expect(storage.get('test')).toBeNull()
+     * expect(storage.get('test')).toBeUndefined()
      * ```
      */
     public delete(key: string) {
         this._checkSupport()
-        sessionStorage.removeItem(this.key(key))
+        globalThis.sessionStorage.removeItem(this.key(key))
     }
 
     /**
@@ -67,16 +67,22 @@ export class SessionStorage extends Storage {
      * storage.set('test', 'value')
      * expect(storage.get('test')).toBe('value')
      * storage.clear()
-     * expect(storage.get('test')).toBeNull()
+     * expect(storage.get('test')).toBeUndefined()
      * ```
      */
     public clear() {
         this._checkSupport()
+        // Without a base key there is no scope to limit the deletion to, so we
+        // refuse to wipe the entire storage (which may belong to other code).
+        if (!this.baseKey) {
+            return
+        }
         const base = this.key()
-        for (const key in sessionStorage) {
-            if (key.startsWith(base)) {
-                this.delete(key)
-            }
+        const keys = Object.keys(globalThis.sessionStorage).filter(key =>
+            key.startsWith(base),
+        )
+        for (const key of keys) {
+            globalThis.sessionStorage.removeItem(key)
         }
     }
 
@@ -90,8 +96,8 @@ export class SessionStorage extends Storage {
      */
     public static supported() {
         return (
-            typeof window !== 'undefined'
-            && typeof sessionStorage !== 'undefined'
+            globalThis.window !== undefined
+            && globalThis.sessionStorage !== undefined
         )
     }
 

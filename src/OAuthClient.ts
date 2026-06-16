@@ -4,6 +4,7 @@ import type { Storage } from './Storage'
 import * as oauth from 'oauth4webapi'
 import { computed, readonly, ref, watch } from 'vue'
 import { LocalStorage } from './LocalStorage'
+import { SessionStorage } from './SessionStorage'
 
 export type OAuthClientOptions = {
     /**
@@ -18,7 +19,7 @@ export type OAuthClientOptions = {
      */
     url: string
     /**
-     * The client ID of the applicatio.
+     * The client ID of the application.
      * @example
      * ```typescript
      * const client = new OAuthClient({
@@ -58,7 +59,19 @@ export type OAuthClientOptions = {
      */
     scopes?: string[] | string
     /**
-     * The storage to use for persisting the refresh token.
+     * The storage to use for persisting the refresh token, the code verifier
+     * and the PKCE/OIDC `state` and `nonce` values.
+     *
+     * Takes precedence over {@link OAuthClientOptions.storageType}: when an
+     * explicit instance is provided, `storageType` is ignored.
+     *
+     * ⚠️ **Security note**: by default the refresh token is persisted in
+     * `localStorage`. `localStorage` survives tab closes and browser restarts
+     * and is readable by any JavaScript running on the origin, so a single XSS
+     * flaw exposes the refresh token. Prefer {@link SessionStorage} (see
+     * {@link OAuthClientOptions.storageType}) when you don't need persistent,
+     * cross-tab sessions, or provide a custom, more secure storage.
+     *
      * @default
      * `new LocalStorage('oauth')`
      * @example
@@ -71,6 +84,31 @@ export type OAuthClientOptions = {
      * ```
      */
     storage?: Storage
+    /**
+     * Convenience setting to choose where the refresh token, code verifier and
+     * `state`/`nonce` are persisted, without instantiating a storage manually.
+     *
+     * - `'local'` &rarr; `new LocalStorage('oauth')` (persists across tabs and
+     *   browser restarts).
+     * - `'session'` &rarr; `new SessionStorage('oauth')` (cleared when the tab
+     *   is closed, not shared between tabs).
+     *
+     * Ignored when {@link OAuthClientOptions.storage} is provided.
+     *
+     * ⚠️ See the security note on {@link OAuthClientOptions.storage}: prefer
+     * `'session'` to reduce the impact of XSS on the refresh token.
+     *
+     * @default 'local'
+     * @example
+     * ```typescript
+     * const client = new OAuthClient({
+     * 	url: 'https://example.com',
+     * 	clientId: 'my-client-id',
+     * 	storageType: 'session'
+     * })
+     * ```
+     */
+    storageType?: 'local' | 'session'
     /**
      * The redirect URI.
      * @default
@@ -103,6 +141,52 @@ export type OAuthClientOptions = {
 
 type UndefinedOrNullString = string | undefined | null
 
+/**
+ * Storage keys for the values that survive a page reload. Single source of
+ * truth so the keys are never duplicated as string literals across the class.
+ */
+const STORAGE_KEYS = {
+    refreshToken: 'refresh_token',
+    codeVerifier: 'code_verifier',
+    state: 'state',
+    nonce: 'nonce',
+} as const
+
+/**
+ * Build the default storage from the `storageType` option.
+ * @param storageType - `'local'` (default) or `'session'`.
+ * @returns a {@link LocalStorage} or {@link SessionStorage} scoped to `oauth`.
+ */
+function createDefaultStorage(
+    storageType: OAuthClientOptions['storageType'] = 'local',
+): Storage {
+    return storageType === 'session'
+        ? new SessionStorage('oauth')
+        : new LocalStorage('oauth')
+}
+
+/**
+ * Resolve `document.location.origin` in a SSR-safe way.
+ * @returns the current origin, or an empty string when no DOM is available.
+ */
+function defaultLocationOrigin(): string {
+    return globalThis.document === undefined
+        ? ''
+        : globalThis.document.location.origin
+}
+
+/**
+ * Normalize the `scopes` option to a single space-separated string.
+ * @param scopes - A string, an array of strings, or undefined.
+ * @returns the space-separated scope string (empty when none provided).
+ */
+function normalizeScopes(scopes: OAuthClientOptions['scopes']): string {
+    if (typeof scopes === 'string') {
+        return scopes
+    }
+    return scopes?.join(' ') ?? ''
+}
+
 export class OAuthClient {
     private _client: oauth.Client
     private _clientAuth: oauth.ClientAuth
@@ -114,7 +198,25 @@ export class OAuthClient {
     private _refreshToken: Ref<UndefinedOrNullString> = ref()
     private _accessToken: Ref<UndefinedOrNullString> = ref()
     private _codeVerifier: Ref<UndefinedOrNullString> = ref()
+    private readonly _state: Ref<UndefinedOrNullString> = ref()
+    private readonly _nonce: Ref<UndefinedOrNullString> = ref()
     private _authorizationServer?: oauth.AuthorizationServer
+    private readonly _loggedIn = computed(() => !!this._accessToken.value)
+    private readonly _accessTokenReadonly = readonly(this._accessToken)
+
+    /**
+     * Reactive values persisted to storage, each paired with its storage key.
+     * Drives loading, resetting and the persistence watchers from one place.
+     */
+    private readonly _persistedRefs: ReadonlyArray<{
+        ref: Ref<UndefinedOrNullString>
+        key: string
+    }> = [
+        { ref: this._refreshToken, key: STORAGE_KEYS.refreshToken },
+        { ref: this._codeVerifier, key: STORAGE_KEYS.codeVerifier },
+        { ref: this._state, key: STORAGE_KEYS.state },
+        { ref: this._nonce, key: STORAGE_KEYS.nonce },
+    ]
 
     constructor(options: OAuthClientOptions) {
         this._issuer = new URL(options.url)
@@ -122,24 +224,53 @@ export class OAuthClient {
         this._client = {
             client_id: options.clientId,
         }
-        this._scope
-            = typeof options.scopes === 'string'
-                ? options.scopes
-                : options.scopes?.join(' ') ?? ''
-        this._storage = options.storage ?? new LocalStorage('oauth')
-        this._refreshToken.value = this._storage.get('refresh_token')
-        this._codeVerifier.value = this._storage.get('code_verifier')
-        this._redirectUri = options.redirectUri ?? document.location.origin
+        this._scope = normalizeScopes(options.scopes)
+        this._storage = options.storage ?? createDefaultStorage(options.storageType)
+        this._redirectUri = options.redirectUri ?? defaultLocationOrigin()
         this._postLogoutRedirectUri
-            = options.postLogoutRedirectUri ?? document.location.origin
+            = options.postLogoutRedirectUri ?? defaultLocationOrigin()
 
-        watch(this._refreshToken, (newValue) => {
-            this._storage.set('refresh_token', newValue)
-        })
+        // Load before wiring the watchers so the initial values are not written
+        // straight back to storage.
+        this._loadFromStorage()
 
-        watch(this._codeVerifier, (newValue) => {
-            this._storage.set('code_verifier', newValue)
-        })
+        // `flush: 'sync'` persists each value synchronously as soon as its ref
+        // changes. The default ('pre') flush is asynchronous, which would let a
+        // navigation (e.g. `document.location.replace` in `logout`/`authorize`)
+        // happen before the storage write, losing or leaking tokens.
+        for (const { ref: target, key } of this._persistedRefs) {
+            watch(target, value => this._storage.set(key, value), {
+                flush: 'sync',
+            })
+        }
+    }
+
+    /**
+     * (Re)load every persisted value from the current storage.
+     */
+    private _loadFromStorage() {
+        for (const { ref: target, key } of this._persistedRefs) {
+            target.value = this._storage.get(key)
+        }
+    }
+
+    /**
+     * Clear every persisted value. The sync watchers remove them from storage.
+     */
+    private _resetPersisted() {
+        for (const { ref: target } of this._persistedRefs) {
+            target.value = undefined
+        }
+    }
+
+    /**
+     * Clear the transient PKCE/OIDC values used for a single authorization
+     * request (code verifier, state and nonce), without touching the tokens.
+     */
+    private _clearAuthorizationRequest() {
+        this._codeVerifier.value = undefined
+        this._state.value = undefined
+        this._nonce.value = undefined
     }
 
     /**
@@ -160,9 +291,8 @@ export class OAuthClient {
         if (options.url) {
             this._issuer = new URL(options.url)
             this._authorizationServer = undefined
-            this._refreshToken.value = undefined
             this._accessToken.value = undefined
-            this._codeVerifier.value = undefined
+            this._resetPersisted()
         }
         if (options.clientId) {
             this._client.client_id = options.clientId
@@ -171,16 +301,13 @@ export class OAuthClient {
             this._clientAuth = options.clientAuthentication
         }
         if (options.scopes) {
-            this._scope
-                = typeof options.scopes === 'string'
-                    ? options.scopes
-                    : options.scopes?.join(' ') ?? ''
+            this._scope = normalizeScopes(options.scopes)
         }
-        if (options.storage) {
-            this._storage = options.storage
-            this._refreshToken.value = this._storage.get('refresh_token')
+        if (options.storage || options.storageType) {
+            this._storage
+                = options.storage ?? createDefaultStorage(options.storageType)
             this._accessToken.value = undefined
-            this._codeVerifier.value = this._storage.get('code_verifier')
+            this._loadFromStorage()
         }
         if (options.redirectUri) {
             this._redirectUri = options.redirectUri
@@ -208,11 +335,22 @@ export class OAuthClient {
             .then(response =>
                 oauth.processDiscoveryResponse(this._issuer, response),
             )
+        const urlParams
+            = globalThis.window === undefined
+                ? new URLSearchParams()
+                : new URLSearchParams(globalThis.window.location.search)
+        // Completing an authorization redirect (a fresh code is in the URL and
+        // we have the matching code verifier) takes precedence over an existing
+        // refresh token, e.g. when re-authenticating while already logged in.
+        if (this._codeVerifier.value && urlParams.has('code')) {
+            return await this.handleCodeResponse(urlParams)
+        }
         if (this._refreshToken.value) {
             return await this.refreshToken(options)
         }
         if (this._codeVerifier.value) {
-            const urlParams = new URLSearchParams(window.location.search)
+            // Stale code verifier without a code in the URL: let
+            // handleCodeResponse discard it.
             return await this.handleCodeResponse(urlParams)
         }
         if (options?.accessToken) {
@@ -240,6 +378,14 @@ export class OAuthClient {
             throw new Error('OAuthClient not initialized')
         }
         this._codeVerifier.value = oauth.generateRandomCodeVerifier()
+        this._state.value = oauth.generateRandomState()
+        // The `nonce` is an OpenID Connect concept tied to the `id_token`,
+        // which is only returned when the `openid` scope is requested. For
+        // plain OAuth 2.0 flows we must not send/expect it, otherwise the token
+        // response would be (wrongly) required to contain an `id_token`.
+        this._nonce.value = this._requestsOpenId()
+            ? oauth.generateRandomNonce()
+            : undefined
         const codeChallenge = await oauth.calculatePKCECodeChallenge(
             this._codeVerifier.value,
         )
@@ -253,7 +399,11 @@ export class OAuthClient {
         authorizationUrl.searchParams.set('redirect_uri', this._redirectUri)
         authorizationUrl.searchParams.set('response_type', 'code')
         authorizationUrl.searchParams.set('scope', this._scope)
-        document.location.replace(authorizationUrl.toString())
+        authorizationUrl.searchParams.set('state', this._state.value)
+        if (this._nonce.value) {
+            authorizationUrl.searchParams.set('nonce', this._nonce.value)
+        }
+        globalThis.document.location.replace(authorizationUrl.toString())
     }
 
     /**
@@ -269,7 +419,7 @@ export class OAuthClient {
             return false
         }
         if (!urlParams.has('code')) {
-            this._codeVerifier.value = undefined
+            this._clearAuthorizationRequest()
             return false
         }
         try {
@@ -277,7 +427,7 @@ export class OAuthClient {
                 this._authorizationServer,
                 this._client,
                 urlParams,
-                oauth.expectNoState,
+                this._state.value ?? oauth.expectNoState,
             )
             const response = await oauth.authorizationCodeGrantRequest(
                 this._authorizationServer,
@@ -291,15 +441,17 @@ export class OAuthClient {
                 this._authorizationServer,
                 this._client,
                 response,
-                options,
+                this._nonce.value
+                    ? { expectedNonce: this._nonce.value, ...options }
+                    : options,
             )
-            this._codeVerifier.value = undefined
+            this._clearAuthorizationRequest()
             this._accessToken.value = result.access_token
             this._refreshToken.value = result.refresh_token
             return this.accessToken
         }
         catch (e) {
-            this._codeVerifier.value = undefined
+            this._clearAuthorizationRequest()
             throw e
         }
     }
@@ -325,21 +477,30 @@ export class OAuthClient {
         if (!this._refreshToken.value) {
             return false
         }
-        const response = await oauth.refreshTokenGrantRequest(
-            this._authorizationServer,
-            this._client,
-            this._clientAuth,
-            this._refreshToken.value,
-            options,
-        )
-        const result = await oauth.processRefreshTokenResponse(
-            this._authorizationServer,
-            this._client,
-            response,
-        )
-        this._accessToken.value = result.access_token
-        this._refreshToken.value = result.refresh_token
-        return this.accessToken
+        try {
+            const response = await oauth.refreshTokenGrantRequest(
+                this._authorizationServer,
+                this._client,
+                this._clientAuth,
+                this._refreshToken.value,
+                options,
+            )
+            const result = await oauth.processRefreshTokenResponse(
+                this._authorizationServer,
+                this._client,
+                response,
+            )
+            this._accessToken.value = result.access_token
+            this._refreshToken.value = result.refresh_token
+            return this.accessToken
+        }
+        catch (e) {
+            // The refresh token is invalid or expired: clear it so that the
+            // next initialize() doesn't keep retrying a doomed refresh.
+            this._refreshToken.value = undefined
+            this._accessToken.value = undefined
+            throw e
+        }
     }
 
     /**
@@ -360,7 +521,7 @@ export class OAuthClient {
         if (!this._authorizationServer) {
             throw new Error('OAuthClient not initialized')
         }
-        this._refreshToken.value = undefined
+        this._resetPersisted()
         if (this.loggedIn.value) {
             this._accessToken.value = undefined
             const logoutUrl = new URL(
@@ -374,8 +535,15 @@ export class OAuthClient {
             if (logoutHint) {
                 logoutUrl.searchParams.set('logout_hint', logoutHint)
             }
-            document.location.replace(logoutUrl.toString())
+            globalThis.document.location.replace(logoutUrl.toString())
         }
+    }
+
+    /**
+     * Whether the configured scope requests an OpenID Connect `id_token`.
+     */
+    private _requestsOpenId() {
+        return this._scope.split(' ').includes('openid')
     }
 
     /**
@@ -393,7 +561,7 @@ export class OAuthClient {
      * ```
      */
     public get loggedIn() {
-        return computed(() => !!this._accessToken.value)
+        return this._loggedIn
     }
 
     /**
@@ -412,7 +580,7 @@ export class OAuthClient {
      * ```
      */
     public get accessToken() {
-        return readonly(this._accessToken)
+        return this._accessTokenReadonly
     }
 
     /**

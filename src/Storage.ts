@@ -28,7 +28,8 @@ export abstract class Storage {
      * @returns true if the storage has a value for the given key.
      */
     public has(name: string): boolean {
-        return this.get(name) !== null && this.get(name) !== undefined
+        const value = this.get(name)
+        return value !== null && value !== undefined
     }
 
     /**
@@ -37,8 +38,9 @@ export abstract class Storage {
      * @returns the scoped key for storage.
      */
     protected key(key = ''): string {
-        if (this.baseKey && !key.includes(this.baseKey)) {
-            return `${this.baseKey}.${key}`
+        const prefix = `${this.baseKey}.`
+        if (this.baseKey && !key.startsWith(prefix)) {
+            return `${prefix}${key}`
         }
 
         return key

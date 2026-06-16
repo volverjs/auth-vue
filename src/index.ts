@@ -14,6 +14,16 @@ export {
     TlsClientAuth,
 } from 'oauth4webapi'
 
+declare module 'vue' {
+    interface ComponentCustomProperties {
+        /**
+         * The {@link OAuthClient} instance, available when the plugin is
+         * installed with `{ global: true }`.
+         */
+        $vvAuth: OAuthClient
+    }
+}
+
 export const authClientInjectionKey = Symbol('') as InjectionKey<OAuthClient>
 
 export class OAuthClientPlugin extends OAuthClient {
