@@ -16,7 +16,7 @@ export class LocalStorage extends Storage {
      */
     public get(key: string, defaultValue?: string) {
         this._checkSupport()
-        return localStorage.getItem(this.key(key)) ?? defaultValue
+        return globalThis.localStorage.getItem(this.key(key)) ?? defaultValue
     }
 
     /**
@@ -37,7 +37,7 @@ export class LocalStorage extends Storage {
             this.delete(key)
             return
         }
-        localStorage.setItem(this.key(key), value)
+        globalThis.localStorage.setItem(this.key(key), value)
     }
 
     /**
@@ -55,7 +55,7 @@ export class LocalStorage extends Storage {
      */
     public delete(name: string) {
         this._checkSupport()
-        localStorage.removeItem(this.key(name))
+        globalThis.localStorage.removeItem(this.key(name))
     }
 
     /**
@@ -78,11 +78,11 @@ export class LocalStorage extends Storage {
             return
         }
         const base = this.key()
-        const keys = Object.keys(localStorage).filter(key =>
+        const keys = Object.keys(globalThis.localStorage).filter(key =>
             key.startsWith(base),
         )
         for (const key of keys) {
-            localStorage.removeItem(key)
+            globalThis.localStorage.removeItem(key)
         }
     }
 
@@ -96,7 +96,8 @@ export class LocalStorage extends Storage {
      */
     public static supported() {
         return (
-            typeof window !== 'undefined' && typeof localStorage !== 'undefined'
+            typeof globalThis.window !== 'undefined'
+            && typeof globalThis.localStorage !== 'undefined'
         )
     }
 

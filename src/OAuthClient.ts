@@ -170,7 +170,9 @@ function createDefaultStorage(
  * @returns the current origin, or an empty string when no DOM is available.
  */
 function defaultLocationOrigin(): string {
-    return typeof document !== 'undefined' ? document.location.origin : ''
+    return typeof globalThis.document === 'undefined'
+        ? ''
+        : globalThis.document.location.origin
 }
 
 /**
@@ -196,8 +198,8 @@ export class OAuthClient {
     private _refreshToken: Ref<UndefinedOrNullString> = ref()
     private _accessToken: Ref<UndefinedOrNullString> = ref()
     private _codeVerifier: Ref<UndefinedOrNullString> = ref()
-    private _state: Ref<UndefinedOrNullString> = ref()
-    private _nonce: Ref<UndefinedOrNullString> = ref()
+    private readonly _state: Ref<UndefinedOrNullString> = ref()
+    private readonly _nonce: Ref<UndefinedOrNullString> = ref()
     private _authorizationServer?: oauth.AuthorizationServer
     private readonly _loggedIn = computed(() => !!this._accessToken.value)
     private readonly _accessTokenReadonly = readonly(this._accessToken)
@@ -334,9 +336,9 @@ export class OAuthClient {
                 oauth.processDiscoveryResponse(this._issuer, response),
             )
         const urlParams
-            = typeof window !== 'undefined'
-                ? new URLSearchParams(window.location.search)
-                : new URLSearchParams()
+            = typeof globalThis.window === 'undefined'
+                ? new URLSearchParams()
+                : new URLSearchParams(globalThis.window.location.search)
         // Completing an authorization redirect (a fresh code is in the URL and
         // we have the matching code verifier) takes precedence over an existing
         // refresh token, e.g. when re-authenticating while already logged in.
@@ -401,7 +403,7 @@ export class OAuthClient {
         if (this._nonce.value) {
             authorizationUrl.searchParams.set('nonce', this._nonce.value)
         }
-        document.location.replace(authorizationUrl.toString())
+        globalThis.document.location.replace(authorizationUrl.toString())
     }
 
     /**
@@ -533,7 +535,7 @@ export class OAuthClient {
             if (logoutHint) {
                 logoutUrl.searchParams.set('logout_hint', logoutHint)
             }
-            document.location.replace(logoutUrl.toString())
+            globalThis.document.location.replace(logoutUrl.toString())
         }
     }
 

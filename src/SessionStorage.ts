@@ -16,7 +16,7 @@ export class SessionStorage extends Storage {
      */
     public get(key: string, defaultValue?: string) {
         this._checkSupport()
-        return sessionStorage.getItem(this.key(key)) ?? defaultValue
+        return globalThis.sessionStorage.getItem(this.key(key)) ?? defaultValue
     }
 
     /**
@@ -37,7 +37,7 @@ export class SessionStorage extends Storage {
             this.delete(key)
             return
         }
-        sessionStorage.setItem(this.key(key), value)
+        globalThis.sessionStorage.setItem(this.key(key), value)
     }
 
     /**
@@ -55,7 +55,7 @@ export class SessionStorage extends Storage {
      */
     public delete(key: string) {
         this._checkSupport()
-        sessionStorage.removeItem(this.key(key))
+        globalThis.sessionStorage.removeItem(this.key(key))
     }
 
     /**
@@ -78,11 +78,11 @@ export class SessionStorage extends Storage {
             return
         }
         const base = this.key()
-        const keys = Object.keys(sessionStorage).filter(key =>
+        const keys = Object.keys(globalThis.sessionStorage).filter(key =>
             key.startsWith(base),
         )
         for (const key of keys) {
-            sessionStorage.removeItem(key)
+            globalThis.sessionStorage.removeItem(key)
         }
     }
 
@@ -96,8 +96,8 @@ export class SessionStorage extends Storage {
      */
     public static supported() {
         return (
-            typeof window !== 'undefined'
-            && typeof sessionStorage !== 'undefined'
+            typeof globalThis.window !== 'undefined'
+            && typeof globalThis.sessionStorage !== 'undefined'
         )
     }
 
