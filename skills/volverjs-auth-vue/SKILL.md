@@ -100,34 +100,9 @@ await auth.handleCodeResponse(new URLSearchParams(location.search))
 
 ## API reference
 
-`createOAuthClient(options)` / `new OAuthClient(options)` — options:
+Core members used above: `await initialize()` (discovery + auto login/refresh), `await authorize()`, `await handleCodeResponse(params)`, `await refreshToken()`, `logout(hint?)`, plus reactive `loggedIn` / `accessToken` and the `initialized` flag. `useOAuthClient(options?)` returns the installed client inside `setup()`.
 
-| option | type | default | notes |
-|---|---|---|---|
-| `url` | `string` | — | **required.** OAuth issuer URL. |
-| `clientId` | `string` | — | **required.** |
-| `scopes` | `string \| string[]` | `''` | include `openid` for OIDC, `offline_access` for a refresh token. |
-| `clientAuthentication` | `ClientAuth` | `None()` | confidential clients only — see below. |
-| `storage` | `Storage` | `new LocalStorage('oauth')` | custom persistence; takes precedence over `storageType`. |
-| `storageType` | `'local' \| 'session'` | `'local'` | convenience switch between `localStorage` / `sessionStorage`. |
-| `redirectUri` | `string` | `document.location.origin` | must match the IdP config. |
-| `postLogoutRedirectUri` | `string` | `document.location.origin` | |
-
-Methods (all the network ones are `async`):
-
-| member | description |
-|---|---|
-| `await initialize(opts?)` | discovery + auto login/refresh. Call once on app start. Accepts `{ accessToken }` to seed a token. |
-| `await authorize()` | redirect to the IdP to log in. Throws if not initialized. |
-| `await handleCodeResponse(params, opts?)` | manually complete the code exchange from `URLSearchParams`. |
-| `await refreshToken(opts?)` | refresh the access token; clears the refresh token on failure. |
-| `logout(logoutHint?)` | clear tokens and redirect to the IdP end-session endpoint. |
-| `extend(options)` | change config at runtime (e.g. switch issuer/storage). |
-| `loggedIn` | `ComputedRef<boolean>` (reactive). |
-| `accessToken` | readonly `Ref<string \| undefined>` (reactive). |
-| `initialized` | `boolean` — discovery done. |
-
-`useOAuthClient(options?)` — composable; returns the installed client. Pass `options` to `extend()` it. Throws if called outside `setup()` or if the plugin isn't installed.
+For the full option table, method signatures and the confidential-client auth helpers, read [references/api.md](references/api.md).
 
 ## Common patterns
 
@@ -163,19 +138,7 @@ router.beforeEach((to) => {
 })
 ```
 
-**Confidential clients** (server-side / has a secret) — set `clientAuthentication`:
-
-```ts
-import { ClientSecretBasic, createOAuthClient } from '@volverjs/auth-vue'
-// also exported: ClientSecretPost, PrivateKeyJwt, TlsClientAuth
-
-createOAuthClient({
-  url, clientId,
-  clientAuthentication: ClientSecretBasic('my-client-secret'),
-})
-```
-
-For a browser SPA leave `clientAuthentication` unset (the default is a public client) and rely on PKCE — never ship a client secret to the browser. The helpers `ClientSecretBasic`, `ClientSecretPost`, `PrivateKeyJwt` and `TlsClientAuth` are re-exported from `@volverjs/auth-vue`.
+For a browser SPA, leave `clientAuthentication` unset (the default is a public client) and rely on PKCE — never ship a client secret to the browser. Confidential clients with a secret set `clientAuthentication` with a helper; see [references/api.md](references/api.md).
 
 ## Storage & security
 
@@ -194,17 +157,4 @@ For a browser SPA leave `clientAuthentication` unset (the default is a public cl
 
 ## Migrating from 0.0.x
 
-The string `tokenEndpointAuthMethod` option was replaced by `clientAuthentication` (a helper function):
-
-```diff
--import { OAuthClient } from '@volverjs/auth-vue'
-+import { ClientSecretBasic, OAuthClient } from '@volverjs/auth-vue'
-
- new OAuthClient({
-   url, clientId,
--  tokenEndpointAuthMethod: 'client_secret_basic',
-+  clientAuthentication: ClientSecretBasic('my-client-secret'),
- })
-```
-
-`'none'` → omit it (the default public client), `'client_secret_post'` → `ClientSecretPost(...)`, `'private_key_jwt'` → `PrivateKeyJwt(...)`, `'tls_client_auth'` → `TlsClientAuth()`. Also: `oauth4webapi` is now 3.x and Node ≥ 20 is required for tooling.
+Upgrading an existing integration? The breaking change is `tokenEndpointAuthMethod` (a string) → `clientAuthentication` (a helper). Full mapping and other changes (oauth4webapi 3.x, Node ≥ 20, state/nonce) in [references/migration.md](references/migration.md).
