@@ -1,2 +1,4 @@
+minimumReleaseAgeExclude:
+  - happy-dom@20.10.4
 onlyBuiltDependencies:
   - esbuild
