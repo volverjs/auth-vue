@@ -50,7 +50,7 @@ export class LocalStorage extends Storage {
      * storage.set('test', 'value')
      * expect(storage.get('test')).toBe('value')
      * storage.delete('test')
-     * expect(storage.get('test')).toBeNull()
+     * expect(storage.get('test')).toBeUndefined()
      * ```
      */
     public delete(name: string) {
@@ -67,16 +67,22 @@ export class LocalStorage extends Storage {
      * storage.set('test', 'value')
      * expect(storage.get('test')).toBe('value')
      * storage.clear()
-     * expect(storage.get('test')).toBeNull()
+     * expect(storage.get('test')).toBeUndefined()
      * ```
      */
     public clear() {
         this._checkSupport()
+        // Without a base key there is no scope to limit the deletion to, so we
+        // refuse to wipe the entire storage (which may belong to other code).
+        if (!this.baseKey) {
+            return
+        }
         const base = this.key()
-        for (const key in localStorage) {
-            if (key.startsWith(base)) {
-                this.delete(key)
-            }
+        const keys = Object.keys(localStorage).filter(key =>
+            key.startsWith(base),
+        )
+        for (const key of keys) {
+            localStorage.removeItem(key)
         }
     }
 
