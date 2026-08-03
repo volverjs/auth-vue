@@ -14,6 +14,7 @@
 | `storageType` | `'local' \| 'session'` | `'local'` | convenience switch between `localStorage` / `sessionStorage`. |
 | `redirectUri` | `string` | `document.location.origin` | must match the IdP config. |
 | `postLogoutRedirectUri` | `string` | `document.location.origin` | where the IdP returns after logout. |
+| `resource` | `string \| string[]` | — | resource indicator(s) (RFC 8707), sent as `resource` on the authorization request and on both token requests. Needed when the server only issues a **JWT** access token for a stated audience, which is what a resource server validating locally against a JWKS requires. An array repeats the parameter; `[]` clears it through `extend()`. A `resource` passed in a call's `additionalParameters` overrides it. |
 
 ## Methods and reactive getters
 

@@ -137,6 +137,30 @@ export type OAuthClientOptions = {
      * ```
      */
     postLogoutRedirectUri?: string
+    /**
+     * Resource indicator(s): the API the access token is meant for. Sent as
+     * `resource` on the authorization request and on every token request
+     * (authorization code and refresh), which is what RFC 8707 asks of a client.
+     *
+     * Worth setting even when the authorization server does not require it:
+     * several servers only issue a **JWT** access token, rather than an opaque
+     * one, when the audience is stated this way, and a resource server that
+     * validates tokens locally against a JWKS needs that JWT.
+     *
+     * Pass an array to request more than one audience. An empty array clears a
+     * previously configured value through {@link OAuthClient.extend}.
+     *
+     * @see [RFC 8707 - Resource Indicators for OAuth 2.0](https://www.rfc-editor.org/rfc/rfc8707.html)
+     * @example
+     * ```typescript
+     * const client = new OAuthClient({
+     * 	url: 'https://example.com',
+     * 	clientId: 'my-client-id',
+     * 	resource: 'https://example.com/api'
+     * })
+     * ```
+     */
+    resource?: string | string[]
 }
 
 type UndefinedOrNullString = string | undefined | null
@@ -187,6 +211,41 @@ function normalizeScopes(scopes: OAuthClientOptions['scopes']): string {
     return scopes?.join(' ') ?? ''
 }
 
+/**
+ * Normalize the `resource` option to an array.
+ * @param resource - A string, an array of strings, or undefined.
+ * @returns the resource indicators (empty when none provided).
+ */
+function normalizeResource(resource: OAuthClientOptions['resource']): string[] {
+    if (resource === undefined) {
+        return []
+    }
+    return typeof resource === 'string' ? [resource] : [...resource]
+}
+
+/**
+ * Normalize the shapes `oauth4webapi` accepts for `additionalParameters` to a
+ * list of entries, so parameters from different sources can be concatenated.
+ * A list is used rather than an object because a parameter may legitimately
+ * repeat: `resource` is the case this library cares about.
+ * @param parameters - The caller-provided additional parameters.
+ * @returns the parameters as `[name, value]` entries.
+ */
+function toParameterEntries(
+    parameters: TokenEndpointRequestOptions['additionalParameters'],
+): [string, string][] {
+    if (parameters === undefined) {
+        return []
+    }
+    if (parameters instanceof URLSearchParams) {
+        return [...parameters.entries()]
+    }
+    if (Array.isArray(parameters)) {
+        return parameters.map(([name, value]) => [name, value])
+    }
+    return Object.entries(parameters)
+}
+
 export class OAuthClient {
     private _client: oauth.Client
     private _clientAuth: oauth.ClientAuth
@@ -195,6 +254,7 @@ export class OAuthClient {
     private _storage: Storage
     private _redirectUri: string
     private _postLogoutRedirectUri: string
+    private _resource: string[]
     private _refreshToken: Ref<UndefinedOrNullString> = ref()
     private _accessToken: Ref<UndefinedOrNullString> = ref()
     private _codeVerifier: Ref<UndefinedOrNullString> = ref()
@@ -229,6 +289,7 @@ export class OAuthClient {
         this._redirectUri = options.redirectUri ?? defaultLocationOrigin()
         this._postLogoutRedirectUri
             = options.postLogoutRedirectUri ?? defaultLocationOrigin()
+        this._resource = normalizeResource(options.resource)
 
         // Load before wiring the watchers so the initial values are not written
         // straight back to storage.
@@ -315,6 +376,42 @@ export class OAuthClient {
         if (options.postLogoutRedirectUri) {
             this._postLogoutRedirectUri = options.postLogoutRedirectUri
         }
+        // Checked against `undefined` rather than for truthiness, so that an
+        // empty array clears the configured resource indicators.
+        if (options.resource !== undefined) {
+            this._resource = normalizeResource(options.resource)
+        }
+    }
+
+    /**
+     * The configured resource indicators as token-request parameters.
+     * @returns one `resource` entry per configured value (empty when none).
+     */
+    private _resourceParameters(): [string, string][] {
+        return this._resource.map(value => ['resource', value])
+    }
+
+    /**
+     * Add the configured resource indicators to a token request, leaving the
+     * caller's own parameters in place. A `resource` supplied by the caller
+     * wins: a per-call audience is a deliberate override of the default, not
+     * something to silently request alongside it.
+     * @param options - The caller-provided token endpoint options.
+     * @returns the options to pass to `oauth4webapi`, or `undefined` when there
+     * is nothing to add.
+     */
+    private _withResource(
+        options?: TokenEndpointRequestOptions,
+    ): TokenEndpointRequestOptions | undefined {
+        const resource = this._resourceParameters()
+        if (!resource.length) {
+            return options
+        }
+        const provided = toParameterEntries(options?.additionalParameters)
+        if (provided.some(([name]) => name === 'resource')) {
+            return options
+        }
+        return { ...options, additionalParameters: [...provided, ...resource] }
     }
 
     /**
@@ -343,7 +440,7 @@ export class OAuthClient {
         // we have the matching code verifier) takes precedence over an existing
         // refresh token, e.g. when re-authenticating while already logged in.
         if (this._codeVerifier.value && urlParams.has('code')) {
-            return await this.handleCodeResponse(urlParams)
+            return await this.handleCodeResponse(urlParams, undefined, options)
         }
         if (this._refreshToken.value) {
             return await this.refreshToken(options)
@@ -403,6 +500,10 @@ export class OAuthClient {
         if (this._nonce.value) {
             authorizationUrl.searchParams.set('nonce', this._nonce.value)
         }
+        // Appended, not set: RFC 8707 allows more than one resource indicator.
+        for (const value of this._resource) {
+            authorizationUrl.searchParams.append('resource', value)
+        }
         globalThis.document.location.replace(authorizationUrl.toString())
     }
 
@@ -411,7 +512,7 @@ export class OAuthClient {
      * @throws If the client is not initialized.
      * @param urlParams - The URL parameters.
      */
-    public handleCodeResponse = async (urlParams: URLSearchParams, options?: oauth.ProcessAuthorizationCodeResponseOptions) => {
+    public handleCodeResponse = async (urlParams: URLSearchParams, options?: oauth.ProcessAuthorizationCodeResponseOptions, requestOptions?: TokenEndpointRequestOptions) => {
         if (!this._authorizationServer) {
             throw new Error('OAuthClient not initialized')
         }
@@ -436,6 +537,7 @@ export class OAuthClient {
                 params,
                 this._redirectUri,
                 this._codeVerifier.value,
+                this._withResource(requestOptions),
             )
             const result = await oauth.processAuthorizationCodeResponse(
                 this._authorizationServer,
@@ -483,7 +585,7 @@ export class OAuthClient {
                 this._client,
                 this._clientAuth,
                 this._refreshToken.value,
-                options,
+                this._withResource(options),
             )
             const result = await oauth.processRefreshTokenResponse(
                 this._authorizationServer,
