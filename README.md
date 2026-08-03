@@ -96,6 +96,11 @@ const authClient = new OAuthClient({
     redirectUri: 'https://my-app.com/callback',
     // The URI to redirect the user after the logout, default: document.location.origin
     postLogoutRedirectUri: 'https://my-app.com',
+    // The API the access token is for (RFC 8707), sent as `resource` on the
+    // authorization and token requests. Some servers only issue a JWT access
+    // token, instead of an opaque one, when the audience is stated this way.
+    // Pass an array to request more than one audience.
+    resource: 'https://my-oauth-server.com/api',
 })
 ```
 

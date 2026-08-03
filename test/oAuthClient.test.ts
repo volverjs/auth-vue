@@ -487,4 +487,168 @@ describe('oAuthClient', () => {
         expect(client.accessToken.value).toBe('from-code')
         expect(localStorage.getItem('oauth.code_verifier')).toBeNull()
     })
+
+    describe('resource indicators (RFC 8707)', () => {
+        /**
+         * Collect the bodies of every token request the client made, so a test
+         * can assert what was actually sent to the token endpoint.
+         */
+        function captureTokenRequests() {
+            const bodies: string[] = []
+            fetchMock.mockResponse(async (req) => {
+                if (req.url.includes('/token')) {
+                    bodies.push(await req.text())
+                    return {
+                        body: JSON.stringify({
+                            access_token: 'an-access-token',
+                            token_type: 'bearer',
+                            refresh_token: 'a-refresh-token',
+                        }),
+                        status: 200,
+                    }
+                }
+                return { body: response, status: 200 }
+            })
+            return bodies
+        }
+
+        it('sends the resource on the authorization request', async () => {
+            const replace = setupDocument()
+            mockEndpoints()
+            const client = new OAuthClient({
+                clientId: 'test',
+                url: 'https://dummy.com',
+                resource: 'https://dummy.com/api',
+            })
+            await client.initialize()
+            await client.authorize()
+            const url = new URL(replace.mock.calls.at(-1)![0] as string)
+            expect(url.searchParams.getAll('resource')).toEqual([
+                'https://dummy.com/api',
+            ])
+        })
+
+        it('repeats the parameter for multiple resources', async () => {
+            const replace = setupDocument()
+            mockEndpoints()
+            const client = new OAuthClient({
+                clientId: 'test',
+                url: 'https://dummy.com',
+                resource: ['https://dummy.com/api', 'https://dummy.com/other'],
+            })
+            await client.initialize()
+            await client.authorize()
+            const url = new URL(replace.mock.calls.at(-1)![0] as string)
+            expect(url.searchParams.getAll('resource')).toEqual([
+                'https://dummy.com/api',
+                'https://dummy.com/other',
+            ])
+        })
+
+        it('sends the resource when exchanging the authorization code', async () => {
+            setupDocument()
+            const bodies = captureTokenRequests()
+            const storage = new LocalStorage('oauth')
+            storage.set('code_verifier', 'a'.repeat(43))
+            storage.set('state', 'my-state')
+            window.history.replaceState(null, '', '/?code=the-code&state=my-state')
+            const client = new OAuthClient({
+                clientId: 'test',
+                url: 'https://dummy.com',
+                resource: 'https://dummy.com/api',
+            })
+            await client.initialize()
+            window.history.replaceState(null, '', '/')
+            const body = new URLSearchParams(bodies.at(-1))
+            expect(body.get('grant_type')).toBe('authorization_code')
+            expect(body.getAll('resource')).toEqual(['https://dummy.com/api'])
+        })
+
+        it('sends the resource when refreshing', async () => {
+            setupDocument()
+            const bodies = captureTokenRequests()
+            new LocalStorage('oauth').set('refresh_token', 'a-refresh-token')
+            const client = new OAuthClient({
+                clientId: 'test',
+                url: 'https://dummy.com',
+                resource: 'https://dummy.com/api',
+            })
+            await client.initialize()
+            const body = new URLSearchParams(bodies.at(-1))
+            expect(body.get('grant_type')).toBe('refresh_token')
+            expect(body.getAll('resource')).toEqual(['https://dummy.com/api'])
+        })
+
+        it('keeps the caller additional parameters alongside the resource', async () => {
+            setupDocument()
+            const bodies = captureTokenRequests()
+            new LocalStorage('oauth').set('refresh_token', 'a-refresh-token')
+            const client = new OAuthClient({
+                clientId: 'test',
+                url: 'https://dummy.com',
+                resource: 'https://dummy.com/api',
+            })
+            await client.initialize()
+            await client.refreshToken({
+                additionalParameters: { audience: 'extra' },
+            })
+            const body = new URLSearchParams(bodies.at(-1))
+            expect(body.get('audience')).toBe('extra')
+            expect(body.getAll('resource')).toEqual(['https://dummy.com/api'])
+        })
+
+        it('lets a per-call resource override the configured one', async () => {
+            setupDocument()
+            const bodies = captureTokenRequests()
+            new LocalStorage('oauth').set('refresh_token', 'a-refresh-token')
+            const client = new OAuthClient({
+                clientId: 'test',
+                url: 'https://dummy.com',
+                resource: 'https://dummy.com/api',
+            })
+            await client.initialize()
+            await client.refreshToken({
+                additionalParameters: { resource: 'https://dummy.com/other' },
+            })
+            const body = new URLSearchParams(bodies.at(-1))
+            expect(body.getAll('resource')).toEqual(['https://dummy.com/other'])
+        })
+
+        it('sends nothing when no resource is configured', async () => {
+            const replace = setupDocument()
+            const bodies = captureTokenRequests()
+            new LocalStorage('oauth').set('refresh_token', 'a-refresh-token')
+            const client = new OAuthClient({
+                clientId: 'test',
+                url: 'https://dummy.com',
+            })
+            await client.initialize()
+            await client.authorize()
+            const url = new URL(replace.mock.calls.at(-1)![0] as string)
+            expect(url.searchParams.has('resource')).toBe(false)
+            expect(new URLSearchParams(bodies.at(-1)).has('resource')).toBe(
+                false,
+            )
+        })
+
+        it('clears the resource when extended with an empty array', async () => {
+            const replace = setupDocument()
+            mockEndpoints()
+            const client = new OAuthClient({
+                clientId: 'test',
+                url: 'https://dummy.com',
+                resource: 'https://dummy.com/api',
+            })
+            await client.initialize()
+            client.extend({
+                clientId: 'test',
+                url: 'https://dummy.com',
+                resource: [],
+            })
+            await client.initialize()
+            await client.authorize()
+            const url = new URL(replace.mock.calls.at(-1)![0] as string)
+            expect(url.searchParams.has('resource')).toBe(false)
+        })
+    })
 })
