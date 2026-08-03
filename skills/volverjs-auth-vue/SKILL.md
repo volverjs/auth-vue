@@ -61,8 +61,12 @@ const auth = useOAuthClient() // must be called inside setup()
 </script>
 
 <template>
-  <button v-if="!auth.loggedIn.value" @click="auth.authorize()">Login</button>
-  <button v-else @click="auth.logout()">Logout</button>
+    <button v-if="!auth.loggedIn.value" @click="auth.authorize()">
+        Login
+    </button>
+    <button v-else @click="auth.logout()">
+        Logout
+    </button>
 </template>
 ```
 
@@ -112,17 +116,17 @@ For the full option table, method signatures and the confidential-client auth he
 import { useOAuthClient } from '@volverjs/auth-vue'
 
 export function useApi() {
-  const auth = useOAuthClient()
-  return (input: RequestInfo, init: RequestInit = {}) =>
-    fetch(input, {
-      ...init,
-      headers: {
-        ...init.headers,
-        ...(auth.accessToken.value
-          ? { Authorization: `Bearer ${auth.accessToken.value}` }
-          : {}),
-      },
-    })
+    const auth = useOAuthClient()
+    return (input: RequestInfo, init: RequestInit = {}) =>
+        fetch(input, {
+            ...init,
+            headers: {
+                ...init.headers,
+                ...(auth.accessToken.value
+                    ? { Authorization: `Bearer ${auth.accessToken.value}` }
+                    : {}),
+            },
+        })
 }
 ```
 
@@ -130,11 +134,11 @@ export function useApi() {
 
 ```ts
 router.beforeEach((to) => {
-  const auth = /* your singleton or app-level client */
-  if (to.meta.requiresAuth && !auth.loggedIn.value) {
-    auth.authorize() // redirects to the IdP
-    return false
-  }
+    const auth = oauthClient // your singleton or app-level client
+    if (to.meta.requiresAuth && !auth.loggedIn.value) {
+        auth.authorize() // redirects to the IdP
+        return false
+    }
 })
 ```
 

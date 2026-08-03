@@ -44,9 +44,9 @@ For clients with a secret (not browser SPAs), set `clientAuthentication` with a 
 import {
     ClientSecretBasic,
     ClientSecretPost,
+    createOAuthClient,
     PrivateKeyJwt,
     TlsClientAuth,
-    createOAuthClient,
 } from '@volverjs/auth-vue'
 
 createOAuthClient({
