@@ -1,4 +1,11 @@
-minimumReleaseAgeExclude:
-  - happy-dom@20.10.4
+minimumReleaseAge: 0
 onlyBuiltDependencies:
   - esbuild
+# typescript is held at 6.x because typescript-eslint does not support the
+# TS 7 (native) compiler API yet:
+# https://github.com/typescript-eslint/typescript-eslint/issues/10940
+# The override keeps typescript on 6.x even if ncu bumps package.json to ^7.
+# When typescript-eslint supports TS >=7.1, remove the override and bump
+# "typescript" to ^7 in package.json.
+overrides:
+  typescript: ^6.0.3
