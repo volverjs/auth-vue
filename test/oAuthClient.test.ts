@@ -602,6 +602,29 @@ describe('oAuthClient', () => {
             expect(url.searchParams.get('client_id')).toBe('test')
         })
 
+        it('redirects with id_token_hint after a reload of a session without a refresh token', async () => {
+            const replace = setupDocument()
+            mockEndpoints()
+            // A code flow that issued no refresh token, after a page reload:
+            // the id token is restored from storage, the access token is gone.
+            new LocalStorage('oauth').set('id_token', 'restored-id-token')
+            const client = new OAuthClient({
+                clientId: 'test',
+                url: 'https://dummy.com',
+                postLogoutRedirectUri: 'https://my-app.com',
+            })
+            await client.initialize()
+            expect(client.loggedIn.value).toBe(false)
+            client.logout()
+            const url = new URL(replace.mock.calls.at(-1)![0] as string)
+            expect(url.pathname).toContain('logout')
+            expect(url.searchParams.get('id_token_hint')).toBe(
+                'restored-id-token',
+            )
+            expect(url.searchParams.get('client_id')).toBe('test')
+            expect(localStorage.getItem('oauth.id_token')).toBeNull()
+        })
+
         it('clears the persisted id token when the refresh fails', async () => {
             setupDocument()
             mockEndpoints({

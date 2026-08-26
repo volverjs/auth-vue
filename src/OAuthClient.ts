@@ -258,7 +258,7 @@ export class OAuthClient {
     private _postLogoutRedirectUri: string
     private _resource: string[]
     private _refreshToken: Ref<UndefinedOrNullString> = ref()
-    private _idToken: Ref<UndefinedOrNullString> = ref()
+    private _idToken: Ref<UndefinedOrNullString> = ref<UndefinedOrNullString>()
     private _accessToken: Ref<UndefinedOrNullString> = ref()
     private _codeVerifier: Ref<UndefinedOrNullString> = ref()
     private readonly _state: Ref<UndefinedOrNullString> = ref()
@@ -266,7 +266,6 @@ export class OAuthClient {
     private _authorizationServer?: oauth.AuthorizationServer
     private readonly _loggedIn = computed(() => !!this._accessToken.value)
     private readonly _accessTokenReadonly = readonly(this._accessToken)
-    private readonly _idTokenReadonly = readonly(this._idToken)
 
     /**
      * Reactive values persisted to storage, each paired with its storage key.
@@ -643,7 +642,10 @@ export class OAuthClient {
         // the `id_token_hint` on the end-session request below.
         const idTokenHint = this._idToken.value
         this._resetPersisted()
-        if (this.loggedIn.value) {
+        // The id token restored from storage can outlive the access token
+        // (page reload of a session without a refresh token): the OP session
+        // still has to be ended even when `loggedIn` is false.
+        if (this.loggedIn.value || idTokenHint) {
             this._accessToken.value = undefined
             const logoutUrl = new URL(
                 this._authorizationServer?.end_session_endpoint
@@ -727,9 +729,7 @@ export class OAuthClient {
      * console.log(client.idToken.value)
      * ```
      */
-    public get idToken() {
-        return this._idTokenReadonly
-    }
+    public readonly idToken = readonly(this._idToken)
 
     /**
      * Indicates whether the client has been initialized.
