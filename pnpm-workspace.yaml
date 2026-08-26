@@ -9,3 +9,8 @@ onlyBuiltDependencies:
 # "typescript" to ^7 in package.json.
 overrides:
   typescript: ^6.0.3
+  # nanoid <3.3.18 (transitive, via postcss) is vulnerable to an infinite
+  # loop with zero-size custom generators (GHSA-2v37-7h3g-55p8). Scoped to
+  # the 3.x line so a future nanoid 4/5 consumer is not downgraded. Remove
+  # once postcss requires >=3.3.18 on its own.
+  'nanoid@<3.3.18': '>=3.3.18 <4'

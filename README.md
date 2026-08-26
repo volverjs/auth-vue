@@ -118,7 +118,8 @@ await authClient.authorize()
 await authClient.handleCodeResponse(new URLSearchParams(window.location.search))
 // refresh the access token
 await authClient.refreshToken()
-// logout the user
+// logout the user: redirects to the end-session endpoint with the last
+// id token as `id_token_hint` (OIDC RP-Initiated Logout)
 authClient.logout()
 ```
 
@@ -127,6 +128,7 @@ The `OAuthClient` class also provides a set of getters to retrieve the OAuth sta
 ```typescript
 authClient.loggedIn // the reactive status of the user (ComputedRef<boolean>)
 authClient.accessToken // the reactive value of the access token (readonly Ref)
+authClient.idToken // the reactive value of the OpenID Connect id token (readonly Ref)
 authClient.initialized // check if the OAuth client is initialized
 ```
 

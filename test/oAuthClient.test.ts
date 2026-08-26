@@ -78,6 +78,29 @@ function mockEndpoints({
 }
 
 /**
+ * Craft an id token the client will accept: `oauth4webapi` validates the
+ * claims of a token-endpoint id token (issuer, audience, expiry, nonce) but
+ * not its signature, so a fixed dummy signature is enough here.
+ */
+function makeIdToken(claims: Record<string, unknown> = {}) {
+    const b64u = (value: string) =>
+        btoa(value).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+    const now = Math.floor(Date.now() / 1000)
+    const header = b64u(JSON.stringify({ alg: 'RS256' }))
+    const payload = b64u(
+        JSON.stringify({
+            iss: 'https://dummy.com',
+            aud: 'test',
+            sub: 'user-1',
+            exp: now + 3600,
+            iat: now,
+            ...claims,
+        }),
+    )
+    return `${header}.${payload}.c2ln`
+}
+
+/**
  * Install a fake `document` with a spied `location.replace` and return the spy.
  */
 function setupDocument() {
@@ -486,6 +509,138 @@ describe('oAuthClient', () => {
         // The authorization code flow must win over the stale refresh token.
         expect(client.accessToken.value).toBe('from-code')
         expect(localStorage.getItem('oauth.code_verifier')).toBeNull()
+    })
+
+    describe('id token and RP-initiated logout', () => {
+        it('stores the id token from the code response and sends it as id_token_hint on logout', async () => {
+            const replace = setupDocument()
+            let idToken: string | undefined
+            fetchMock.mockResponse(async (req) => {
+                if (req.url.includes('/token')) {
+                    return {
+                        body: JSON.stringify({
+                            access_token: 'acc',
+                            token_type: 'bearer',
+                            refresh_token: 'ref',
+                            id_token: idToken,
+                        }),
+                        status: 200,
+                    }
+                }
+                return { body: response, status: 200 }
+            })
+            const client = new OAuthClient({
+                clientId: 'test',
+                scopes: ['openid', 'profile'],
+                url: 'https://dummy.com',
+                postLogoutRedirectUri: 'https://my-app.com',
+            })
+            await client.initialize()
+            await client.authorize()
+            const state = localStorage.getItem('oauth.state') as string
+            const nonce = localStorage.getItem('oauth.nonce') as string
+            idToken = makeIdToken({ nonce })
+            await client.handleCodeResponse(
+                new URLSearchParams({ code: 'the-code', state }),
+            )
+            expect(client.idToken.value).toBe(idToken)
+            expect(localStorage.getItem('oauth.id_token')).toBe(idToken)
+            client.logout()
+            const url = new URL(replace.mock.calls.at(-1)![0] as string)
+            expect(url.searchParams.get('id_token_hint')).toBe(idToken)
+            expect(url.searchParams.get('client_id')).toBe('test')
+            expect(url.searchParams.get('post_logout_redirect_uri')).toBe(
+                'https://my-app.com',
+            )
+            // Logged out: nothing about the session may survive in storage.
+            expect(localStorage.getItem('oauth.id_token')).toBeNull()
+        })
+
+        it('keeps the persisted id token across a refresh that returns none', async () => {
+            const replace = setupDocument()
+            mockEndpoints({
+                tokenBody: JSON.stringify({
+                    access_token: 'acc',
+                    token_type: 'bearer',
+                    refresh_token: 'ref',
+                }),
+            })
+            const storage = new LocalStorage('oauth')
+            storage.set('refresh_token', 'r')
+            storage.set('id_token', 'stored-id-token')
+            const client = new OAuthClient({
+                clientId: 'test',
+                url: 'https://dummy.com',
+            })
+            await client.initialize()
+            expect(client.idToken.value).toBe('stored-id-token')
+            client.logout()
+            const url = new URL(replace.mock.calls.at(-1)![0] as string)
+            expect(url.searchParams.get('id_token_hint')).toBe(
+                'stored-id-token',
+            )
+        })
+
+        it('omits id_token_hint from the logout URL when no id token exists', async () => {
+            const replace = setupDocument()
+            mockEndpoints({
+                tokenBody: JSON.stringify({
+                    access_token: 'acc',
+                    token_type: 'bearer',
+                    refresh_token: 'ref',
+                }),
+            })
+            new LocalStorage('oauth').set('refresh_token', 'r')
+            const client = new OAuthClient({
+                clientId: 'test',
+                url: 'https://dummy.com',
+            })
+            await client.initialize()
+            client.logout()
+            const url = new URL(replace.mock.calls.at(-1)![0] as string)
+            expect(url.searchParams.has('id_token_hint')).toBe(false)
+            expect(url.searchParams.get('client_id')).toBe('test')
+        })
+
+        it('redirects with id_token_hint after a reload of a session without a refresh token', async () => {
+            const replace = setupDocument()
+            mockEndpoints()
+            // A code flow that issued no refresh token, after a page reload:
+            // the id token is restored from storage, the access token is gone.
+            new LocalStorage('oauth').set('id_token', 'restored-id-token')
+            const client = new OAuthClient({
+                clientId: 'test',
+                url: 'https://dummy.com',
+                postLogoutRedirectUri: 'https://my-app.com',
+            })
+            await client.initialize()
+            expect(client.loggedIn.value).toBe(false)
+            client.logout()
+            const url = new URL(replace.mock.calls.at(-1)![0] as string)
+            expect(url.pathname).toContain('logout')
+            expect(url.searchParams.get('id_token_hint')).toBe(
+                'restored-id-token',
+            )
+            expect(url.searchParams.get('client_id')).toBe('test')
+            expect(localStorage.getItem('oauth.id_token')).toBeNull()
+        })
+
+        it('clears the persisted id token when the refresh fails', async () => {
+            setupDocument()
+            mockEndpoints({
+                tokenBody: JSON.stringify({ error: 'invalid_grant' }),
+                tokenStatus: 400,
+            })
+            const storage = new LocalStorage('oauth')
+            storage.set('refresh_token', 'expired')
+            storage.set('id_token', 'stale-id-token')
+            const client = new OAuthClient({
+                clientId: 'test',
+                url: 'https://dummy.com',
+            })
+            await expect(client.initialize()).rejects.toThrow()
+            expect(localStorage.getItem('oauth.id_token')).toBeNull()
+        })
     })
 
     describe('resource indicators (RFC 8707)', () => {

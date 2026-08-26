@@ -59,8 +59,8 @@ export type OAuthClientOptions = {
      */
     scopes?: string[] | string
     /**
-     * The storage to use for persisting the refresh token, the code verifier
-     * and the PKCE/OIDC `state` and `nonce` values.
+     * The storage to use for persisting the refresh token, the id token, the
+     * code verifier and the PKCE/OIDC `state` and `nonce` values.
      *
      * Takes precedence over {@link OAuthClientOptions.storageType}: when an
      * explicit instance is provided, `storageType` is ignored.
@@ -85,8 +85,9 @@ export type OAuthClientOptions = {
      */
     storage?: Storage
     /**
-     * Convenience setting to choose where the refresh token, code verifier and
-     * `state`/`nonce` are persisted, without instantiating a storage manually.
+     * Convenience setting to choose where the refresh token, id token, code
+     * verifier and `state`/`nonce` are persisted, without instantiating a
+     * storage manually.
      *
      * - `'local'` &rarr; `new LocalStorage('oauth')` (persists across tabs and
      *   browser restarts).
@@ -171,6 +172,7 @@ type UndefinedOrNullString = string | undefined | null
  */
 const STORAGE_KEYS = {
     refreshToken: 'refresh_token',
+    idToken: 'id_token',
     codeVerifier: 'code_verifier',
     state: 'state',
     nonce: 'nonce',
@@ -256,6 +258,7 @@ export class OAuthClient {
     private _postLogoutRedirectUri: string
     private _resource: string[]
     private _refreshToken: Ref<UndefinedOrNullString> = ref()
+    private _idToken: Ref<UndefinedOrNullString> = ref<UndefinedOrNullString>()
     private _accessToken: Ref<UndefinedOrNullString> = ref()
     private _codeVerifier: Ref<UndefinedOrNullString> = ref()
     private readonly _state: Ref<UndefinedOrNullString> = ref()
@@ -273,6 +276,10 @@ export class OAuthClient {
         key: string
     }> = [
         { ref: this._refreshToken, key: STORAGE_KEYS.refreshToken },
+        // Persisted so an RP-initiated logout can present `id_token_hint`
+        // even after a page reload, when the in-memory copy is gone. It lives
+        // next to the refresh token, so it adds no new exposure.
+        { ref: this._idToken, key: STORAGE_KEYS.idToken },
         { ref: this._codeVerifier, key: STORAGE_KEYS.codeVerifier },
         { ref: this._state, key: STORAGE_KEYS.state },
         { ref: this._nonce, key: STORAGE_KEYS.nonce },
@@ -550,6 +557,9 @@ export class OAuthClient {
             this._clearAuthorizationRequest()
             this._accessToken.value = result.access_token
             this._refreshToken.value = result.refresh_token
+            // Absent without the `openid` scope; assigning `undefined` also
+            // discards a stale value from a previous OpenID Connect session.
+            this._idToken.value = result.id_token
             return this.accessToken
         }
         catch (e) {
@@ -594,19 +604,24 @@ export class OAuthClient {
             )
             this._accessToken.value = result.access_token
             this._refreshToken.value = result.refresh_token
+            // A refresh response is not required to carry a new id token
+            // (OIDC Core §12.2): keep the previous one for the logout hint.
+            this._idToken.value = result.id_token ?? this._idToken.value
             return this.accessToken
         }
         catch (e) {
             // The refresh token is invalid or expired: clear it so that the
             // next initialize() doesn't keep retrying a doomed refresh.
             this._refreshToken.value = undefined
+            this._idToken.value = undefined
             this._accessToken.value = undefined
             throw e
         }
     }
 
     /**
-     * Logout the user.
+     * Logout the user, redirecting to the end-session endpoint with the last
+     * id token as `id_token_hint` (OIDC RP-Initiated Logout 1.0).
      * @param logoutHint - The hint to the Authorization Server about the End-User that is logging out.
      * @throws If the client is not initialized.
      * @example
@@ -623,8 +638,14 @@ export class OAuthClient {
         if (!this._authorizationServer) {
             throw new Error('OAuthClient not initialized')
         }
+        // Captured before the reset wipes every persisted value: it becomes
+        // the `id_token_hint` on the end-session request below.
+        const idTokenHint = this._idToken.value
         this._resetPersisted()
-        if (this.loggedIn.value) {
+        // The id token restored from storage can outlive the access token
+        // (page reload of a session without a refresh token): the OP session
+        // still has to be ended even when `loggedIn` is false.
+        if (this.loggedIn.value || idTokenHint) {
             this._accessToken.value = undefined
             const logoutUrl = new URL(
                 this._authorizationServer?.end_session_endpoint
@@ -634,6 +655,14 @@ export class OAuthClient {
                 'post_logout_redirect_uri',
                 this._postLogoutRedirectUri,
             )
+            // Both are OPTIONAL per OIDC RP-Initiated Logout 1.0 §2, but many
+            // authorization servers require the `id_token_hint` to identify
+            // the session to end, and recommend `client_id` alongside a
+            // `post_logout_redirect_uri`.
+            logoutUrl.searchParams.set('client_id', this._client.client_id)
+            if (idTokenHint) {
+                logoutUrl.searchParams.set('id_token_hint', idTokenHint)
+            }
             if (logoutHint) {
                 logoutUrl.searchParams.set('logout_hint', logoutHint)
             }
@@ -684,6 +713,23 @@ export class OAuthClient {
     public get accessToken() {
         return this._accessTokenReadonly
     }
+
+    /**
+     * Reactive value indicating the OpenID Connect id token, when the `openid`
+     * scope was requested. Sent as `id_token_hint` on {@link logout}; exposed
+     * so the application can read the identity claims without another request.
+     * @example
+     * ```typescript
+     * const client = new OAuthClient({
+     * 	url: 'https://example.com',
+     * 	clientId: 'my-client-id',
+     * 	scopes: 'openid profile',
+     * })
+     * await client.initialize()
+     * console.log(client.idToken.value)
+     * ```
+     */
+    public readonly idToken = readonly(this._idToken)
 
     /**
      * Indicates whether the client has been initialized.
