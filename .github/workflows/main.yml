@@ -24,10 +24,10 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - name: Download artifact
-              uses: actions/download-artifact@v4
+              uses: actions/download-artifact@v8
               with:
                   name: package
-            - uses: actions/setup-node@v4
+            - uses: actions/setup-node@v7
               with:
                   node-version: 24
                   registry-url: https://registry.npmjs.org/
@@ -43,10 +43,10 @@ jobs:
             packages: write
         steps:
             - name: Download artifact
-              uses: actions/download-artifact@v4
+              uses: actions/download-artifact@v8
               with:
                   name: package
-            - uses: actions/setup-node@v4
+            - uses: actions/setup-node@v7
               with:
                   node-version: 24
                   registry-url: https://npm.pkg.github.com/
