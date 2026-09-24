@@ -2,7 +2,7 @@
     "name": "@volverjs/auth-vue",
     "type": "module",
     "version": "0.0.0",
-    "packageManager": "pnpm@10.18.0",
+    "packageManager": "pnpm@12.6.0",
     "description": "Simple OAuth 2 / OpenID Connect plugin for Vue 3",
     "author": "8 Wave S.r.l.",
     "license": "MIT",
@@ -41,8 +41,8 @@
             "import": "./dist/SessionStorage.js"
         },
         "./oauth-client": {
-            "types": "./dist/OauthClient.d.ts",
-            "import": "./dist/OauthClient.js"
+            "types": "./dist/OAuthClient.d.ts",
+            "import": "./dist/OAuthClient.js"
         }
     },
     "main": "./dist/index.js",
@@ -63,7 +63,7 @@
                 "dist/SessionStorage.d.ts"
             ],
             "oauth-client": [
-                "dist/OauthClient.d.ts"
+                "dist/OAuthClient.d.ts"
             ]
         }
     },
@@ -73,7 +73,7 @@
         "src"
     ],
     "engines": {
-        "node": ">= 16.x"
+        "node": ">=20"
     },
     "scripts": {
         "lint": "eslint .",
@@ -87,24 +87,23 @@
         "credits": "npx @opengovsg/credits-generator"
     },
     "peerDependencies": {
-        "vue": "^3.5.x"
+        "vue": "^3.5.0"
     },
     "dependencies": {
-        "oauth4webapi": "^2.17.0"
+        "oauth4webapi": "^3.8.8"
     },
     "devDependencies": {
-        "@antfu/eslint-config": "^5.4.1",
-        "@nabla/vite-plugin-eslint": "^2.0.6",
+        "@antfu/eslint-config": "^9.5.1",
+        "@nabla/vite-plugin-eslint": "^3.0.1",
         "copy": "^0.3.2",
-        "eslint": "^9.36.0",
-        "happy-dom": "^19.0.2",
+        "eslint": "^10.11.0",
+        "happy-dom": "^20.14.5",
         "node-fetch": "^3.3.2",
-        "typescript": "^5.9.3",
-        "vite": "^7.1.8",
-        "vite-plugin-dts": "^4.5.4",
-        "vitest": "^3.2.4",
+        "typescript": "^7.0.2",
+        "unplugin-dts": "1.1.1",
+        "vite": "^8.3.0",
+        "vitest": "^5.0.1",
         "vitest-fetch-mock": "^0.4.5",
-        "vue": "^3.5.22",
-        "vue-tsc": "^3.1.0"
+        "vue-tsc": "^3.3.11"
     }
 }

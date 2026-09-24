@@ -1,0 +1,14 @@
+{
+    "name": "volverjs-auth-vue",
+    "owner": {
+        "name": "8 Wave S.r.l.",
+        "url": "https://8wave.it"
+    },
+    "plugins": [
+        {
+            "name": "volverjs-auth-vue",
+            "source": ".",
+            "description": "OAuth2 / OpenID Connect authentication for Vue 3 with @volverjs/auth-vue"
+        }
+    ]
+}

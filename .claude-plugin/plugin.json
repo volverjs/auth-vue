@@ -1,0 +1,11 @@
+{
+    "name": "volverjs-auth-vue",
+    "description": "OAuth2 / OpenID Connect authentication for Vue 3 with @volverjs/auth-vue",
+    "version": "1.0.0",
+    "author": {
+        "name": "8 Wave S.r.l."
+    },
+    "homepage": "https://github.com/volverjs/auth-vue",
+    "repository": "https://github.com/volverjs/auth-vue",
+    "license": "MIT"
+}

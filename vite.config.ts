@@ -1,10 +1,10 @@
 import path from 'node:path'
 import ESLint from '@nabla/vite-plugin-eslint'
-import dts from 'vite-plugin-dts'
+import dts from 'unplugin-dts/vite'
 import { defineConfig } from 'vitest/config'
 
 // https://vitejs.dev/config/
-export default () => {
+export default ({ mode }: { mode: string }) => {
     return defineConfig({
         test: {
             globals: true,
@@ -12,20 +12,23 @@ export default () => {
         },
         build: {
             lib: {
-                name: '@volverjs/data',
+                name: '@volverjs/auth-vue',
                 formats: ['es'],
                 entry: {
-                    index: path.resolve(__dirname, 'src/index.ts'),
+                    index: path.resolve(import.meta.dirname, 'src/index.ts'),
                     LocalStorage: path.resolve(
-                        __dirname,
+                        import.meta.dirname,
                         'src/LocalStorage.ts',
                     ),
-                    OAuthClient: path.resolve(__dirname, 'src/OAuthClient.ts'),
+                    OAuthClient: path.resolve(
+                        import.meta.dirname,
+                        'src/OAuthClient.ts',
+                    ),
                     SessionStorage: path.resolve(
-                        __dirname,
+                        import.meta.dirname,
                         'src/SessionStorage.ts',
                     ),
-                    Storage: path.resolve(__dirname, 'src/Storage.ts'),
+                    Storage: path.resolve(import.meta.dirname, 'src/Storage.ts'),
                 },
                 fileName: (format, entryName) => `${entryName}.js`,
             },
@@ -42,11 +45,17 @@ export default () => {
         },
         plugins: [
             // https://github.com/gxmari007/vite-plugin-eslint
-            ESLint(),
+            // The ESLint worker keeps the process alive after vitest closes,
+            // and linting already runs as a separate script.
+            ...(mode === 'test' ? [] : [ESLint()]),
 
-            // https://github.com/qmhc/vite-plugin-dts
+            // https://github.com/qmhc/unplugin-dts
+            // Without rootDir the declarations land in dist/src/ and break the
+            // package.json paths; entryRoot does not fix it.
             dts({
-                insertTypesEntry: true,
+                compilerOptions: {
+                    rootDir: path.resolve(import.meta.dirname, 'src'),
+                },
             }),
         ],
     })

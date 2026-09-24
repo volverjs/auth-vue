@@ -16,7 +16,7 @@ export class LocalStorage extends Storage {
      */
     public get(key: string, defaultValue?: string) {
         this._checkSupport()
-        return localStorage.getItem(this.key(key)) ?? defaultValue
+        return globalThis.localStorage.getItem(this.key(key)) ?? defaultValue
     }
 
     /**
@@ -37,7 +37,7 @@ export class LocalStorage extends Storage {
             this.delete(key)
             return
         }
-        localStorage.setItem(this.key(key), value)
+        globalThis.localStorage.setItem(this.key(key), value)
     }
 
     /**
@@ -50,12 +50,12 @@ export class LocalStorage extends Storage {
      * storage.set('test', 'value')
      * expect(storage.get('test')).toBe('value')
      * storage.delete('test')
-     * expect(storage.get('test')).toBeNull()
+     * expect(storage.get('test')).toBeUndefined()
      * ```
      */
     public delete(name: string) {
         this._checkSupport()
-        localStorage.removeItem(this.key(name))
+        globalThis.localStorage.removeItem(this.key(name))
     }
 
     /**
@@ -67,16 +67,22 @@ export class LocalStorage extends Storage {
      * storage.set('test', 'value')
      * expect(storage.get('test')).toBe('value')
      * storage.clear()
-     * expect(storage.get('test')).toBeNull()
+     * expect(storage.get('test')).toBeUndefined()
      * ```
      */
     public clear() {
         this._checkSupport()
+        // Without a base key there is no scope to limit the deletion to, so we
+        // refuse to wipe the entire storage (which may belong to other code).
+        if (!this.baseKey) {
+            return
+        }
         const base = this.key()
-        for (const key in localStorage) {
-            if (key.startsWith(base)) {
-                this.delete(key)
-            }
+        const keys = Object.keys(globalThis.localStorage).filter(key =>
+            key.startsWith(base),
+        )
+        for (const key of keys) {
+            globalThis.localStorage.removeItem(key)
         }
     }
 
@@ -90,7 +96,8 @@ export class LocalStorage extends Storage {
      */
     public static supported() {
         return (
-            typeof window !== 'undefined' && typeof localStorage !== 'undefined'
+            globalThis.window !== undefined
+            && globalThis.localStorage !== undefined
         )
     }
 

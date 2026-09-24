@@ -1,17 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import createFetchMock from 'vitest-fetch-mock'
+import { LocalStorage } from '../src/LocalStorage'
 import { OAuthClient } from '../src/OAuthClient'
+import { SessionStorage } from '../src/SessionStorage'
 
 const fetchMock = createFetchMock(vi)
 
 const response = JSON.stringify({
-    token_endpoint: 'http://dummy.com/oauth2/v2.0/token',
+    token_endpoint: 'https://dummy.com/oauth2/v2.0/token',
     token_endpoint_auth_methods_supported: [
         'client_secret_post',
         'private_key_jwt',
         'client_secret_basic',
     ],
-    jwks_uri: 'http://dummy.com/discovery/v2.0/keys',
+    jwks_uri: 'https://dummy.com/discovery/v2.0/keys',
     response_modes_supported: ['query', 'fragment', 'form_post'],
     subject_types_supported: ['pairwise'],
     id_token_signing_alg_values_supported: ['RS256'],
@@ -22,14 +24,14 @@ const response = JSON.stringify({
         'id_token token',
     ],
     scopes_supported: ['openid', 'profile', 'email', 'offline_access'],
-    issuer: 'http://dummy.com',
+    issuer: 'https://dummy.com',
     request_uri_parameter_supported: false,
     userinfo_endpoint: 'https://graph.microsoft.com/oidc/userinfo',
-    authorization_endpoint: 'http://dummy.com/oauth2/v2.0/authorize',
-    device_authorization_endpoint: 'http://dummy.com/oauth2/v2.0/devicecode',
+    authorization_endpoint: 'https://dummy.com/oauth2/v2.0/authorize',
+    device_authorization_endpoint: 'https://dummy.com/oauth2/v2.0/devicecode',
     http_logout_supported: true,
     frontchannel_logout_supported: true,
-    end_session_endpoint: 'http://dummy.com/oauth2/v2.0/logout',
+    end_session_endpoint: 'https://dummy.com/oauth2/v2.0/logout',
     claims_supported: [
         'sub',
         'iss',
@@ -51,7 +53,7 @@ const response = JSON.stringify({
         'c_hash',
         'email',
     ],
-    kerberos_endpoint: 'http://dummy.com/kerberos',
+    kerberos_endpoint: 'https://dummy.com/kerberos',
     tenant_region_scope: 'EU',
     cloud_instance_name: 'microsoftonline.com',
     cloud_graph_host_name: 'graph.windows.net',
@@ -59,15 +61,72 @@ const response = JSON.stringify({
     rbac_url: 'https://pas.windows.net',
 })
 
+/**
+ * Route fetch: the discovery URL returns the AS metadata, anything that looks
+ * like the token endpoint returns the provided token response.
+ */
+function mockEndpoints({
+    tokenBody = '{}',
+    tokenStatus = 200,
+}: { tokenBody?: string, tokenStatus?: number } = {}) {
+    fetchMock.mockResponse((req) => {
+        if (req.url.includes('/token')) {
+            return { body: tokenBody, status: tokenStatus }
+        }
+        return { body: response, status: 200 }
+    })
+}
+
+/**
+ * Craft an id token the client will accept: `oauth4webapi` validates the
+ * claims of a token-endpoint id token (issuer, audience, expiry, nonce) but
+ * not its signature, so a fixed dummy signature is enough here.
+ */
+function makeIdToken(claims: Record<string, unknown> = {}) {
+    const b64u = (value: string) =>
+        btoa(value).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+    const now = Math.floor(Date.now() / 1000)
+    const header = b64u(JSON.stringify({ alg: 'RS256' }))
+    const payload = b64u(
+        JSON.stringify({
+            iss: 'https://dummy.com',
+            aud: 'test',
+            sub: 'user-1',
+            exp: now + 3600,
+            iat: now,
+            ...claims,
+        }),
+    )
+    return `${header}.${payload}.c2ln`
+}
+
+/**
+ * Install a fake `document` with a spied `location.replace` and return the spy.
+ */
+function setupDocument() {
+    const replace = vi.fn()
+    globalThis.document = {
+        // @ts-expect-error: Mocking window.location
+        location: {
+            assign: replace,
+            replace,
+            origin: 'https://my-app.com',
+        },
+    }
+    return replace
+}
+
 describe('oAuthClient', () => {
     beforeEach(() => {
         fetchMock.enableMocks()
         fetchMock.resetMocks()
+        localStorage.clear()
+        sessionStorage.clear()
     })
     it('should create a new OAuthClient instance', () => {
         const client = new OAuthClient({
             clientId: '864b865f-3025-4c48-b4ed-c16676a5b676',
-            url: 'http://dummy.com',
+            url: 'https://dummy.com',
         })
         expect(client).toBeInstanceOf(OAuthClient)
     })
@@ -76,12 +135,12 @@ describe('oAuthClient', () => {
         fetchMock.mockResponse(response, {
             status: 200,
             statusText: 'ok',
-            url: 'http://dummy.com/.well-known/openid-configuration',
+            url: 'https://dummy.com/.well-known/openid-configuration',
         })
         const client = new OAuthClient({
             clientId: 'test',
             scopes: ['test'],
-            url: 'http://dummy.com',
+            url: 'https://dummy.com',
         })
         expect(client).toBeInstanceOf(OAuthClient)
         await client.initialize()
@@ -99,20 +158,652 @@ describe('oAuthClient', () => {
         fetchMock.mockResponse(response, {
             status: 200,
             statusText: 'ok',
-            url: 'http://dummy.com/.well-known/openid-configuration',
+            url: 'https://dummy.com/.well-known/openid-configuration',
         })
         const client = new OAuthClient({
             clientId: 'test',
             scopes: ['test'],
-            url: 'http://dummy.com',
+            url: 'https://dummy.com',
         })
         expect(client).toBeInstanceOf(OAuthClient)
         await client.initialize()
         expect(client.initialized).toBe(true)
         await client.authorize()
         const urlToTest = mockResponse.mock.calls[0][0]
-        expect(urlToTest).toContain('http://dummy.com/oauth2/v2.0/authorize')
+        expect(urlToTest).toContain('https://dummy.com/oauth2/v2.0/authorize')
         expect(urlToTest).toContain('scope=test')
         expect(urlToTest).toContain('client_id=test')
+        // CSRF protection (state) and PKCE must always be present.
+        expect(urlToTest).toContain('state=')
+        expect(urlToTest).toContain('code_challenge=')
+        expect(urlToTest).toContain('code_challenge_method=S256')
+        // Without the `openid` scope no nonce should be requested.
+        expect(urlToTest).not.toContain('nonce=')
+    })
+
+    it('should request a nonce only when the openid scope is used', async () => {
+        const replace = setupDocument()
+        mockEndpoints()
+        const client = new OAuthClient({
+            clientId: 'test',
+            scopes: ['openid', 'profile'],
+            url: 'https://dummy.com',
+        })
+        await client.initialize()
+        await client.authorize()
+        const url = replace.mock.calls.at(-1)![0] as string
+        expect(url).toContain('nonce=')
+        expect(localStorage.getItem('oauth.nonce')).toBeTruthy()
+    })
+
+    it('should persist code verifier, state and nonce on authorize', async () => {
+        const mockResponse = vi.fn()
+        globalThis.document = {
+            // @ts-expect-error: Mocking window.location
+            location: {
+                assign: mockResponse,
+                replace: mockResponse,
+                origin: 'https://my-app.com',
+            },
+        }
+        fetchMock.mockResponse(response, {
+            status: 200,
+            statusText: 'ok',
+            url: 'https://dummy.com/.well-known/openid-configuration',
+        })
+        sessionStorage.clear()
+        localStorage.clear()
+        const client = new OAuthClient({
+            clientId: 'test',
+            scopes: ['openid', 'profile'],
+            url: 'https://dummy.com',
+            storageType: 'session',
+        })
+        await client.initialize()
+        await client.authorize()
+        // With storageType 'session' the transient values must live in
+        // sessionStorage, scoped under the default 'oauth' base key.
+        expect(sessionStorage.getItem('oauth.code_verifier')).toBeTruthy()
+        expect(sessionStorage.getItem('oauth.state')).toBeTruthy()
+        expect(sessionStorage.getItem('oauth.nonce')).toBeTruthy()
+        expect(localStorage.getItem('oauth.code_verifier')).toBeNull()
+    })
+
+    it('should join array scopes with spaces in the authorize URL', async () => {
+        const replace = setupDocument()
+        mockEndpoints()
+        const client = new OAuthClient({
+            clientId: 'test',
+            scopes: ['openid', 'profile', 'email'],
+            url: 'https://dummy.com',
+        })
+        await client.initialize()
+        await client.authorize()
+        // URLSearchParams encodes spaces as '+'.
+        const url = replace.mock.calls.at(-1)![0] as string
+        expect(url).toContain('scope=openid+profile+email')
+    })
+
+    it('should expose stable reactive references', () => {
+        const client = new OAuthClient({
+            clientId: 'test',
+            url: 'https://dummy.com',
+        })
+        expect(client.loggedIn).toBe(client.loggedIn)
+        expect(client.accessToken).toBe(client.accessToken)
+    })
+
+    it('should not throw when document is unavailable (SSR)', () => {
+        const saved = globalThis.document
+        // @ts-expect-error: simulate a server-side environment
+        delete globalThis.document
+        expect(
+            () =>
+                new OAuthClient({ clientId: 'test', url: 'https://dummy.com' }),
+        ).not.toThrow()
+        globalThis.document = saved
+    })
+
+    it('should throw when methods are called before initialize', async () => {
+        setupDocument()
+        const client = new OAuthClient({
+            clientId: 'test',
+            url: 'https://dummy.com',
+        })
+        await expect(client.authorize()).rejects.toThrow(
+            'OAuthClient not initialized',
+        )
+        await expect(
+            client.handleCodeResponse(new URLSearchParams()),
+        ).rejects.toThrow('OAuthClient not initialized')
+        await expect(client.refreshToken()).rejects.toThrow(
+            'OAuthClient not initialized',
+        )
+        expect(() => client.logout()).toThrow('OAuthClient not initialized')
+    })
+
+    it('should set the access token from initialize options', async () => {
+        setupDocument()
+        mockEndpoints()
+        const client = new OAuthClient({
+            clientId: 'test',
+            url: 'https://dummy.com',
+        })
+        await client.initialize({ accessToken: 'preset-token' })
+        expect(client.accessToken.value).toBe('preset-token')
+        expect(client.loggedIn.value).toBe(true)
+    })
+
+    it('should refresh the token on initialize when a refresh token exists', async () => {
+        setupDocument()
+        mockEndpoints({
+            tokenBody: JSON.stringify({
+                access_token: 'new-access',
+                token_type: 'bearer',
+                refresh_token: 'new-refresh',
+            }),
+        })
+        new LocalStorage('oauth').set('refresh_token', 'old-refresh')
+        const client = new OAuthClient({
+            clientId: 'test',
+            url: 'https://dummy.com',
+        })
+        await client.initialize()
+        expect(client.accessToken.value).toBe('new-access')
+        expect(client.loggedIn.value).toBe(true)
+        expect(localStorage.getItem('oauth.refresh_token')).toBe('new-refresh')
+    })
+
+    it('should clear the refresh token when the refresh fails', async () => {
+        setupDocument()
+        mockEndpoints({
+            tokenBody: JSON.stringify({ error: 'invalid_grant' }),
+            tokenStatus: 400,
+        })
+        new LocalStorage('oauth').set('refresh_token', 'expired')
+        const client = new OAuthClient({
+            clientId: 'test',
+            url: 'https://dummy.com',
+        })
+        await expect(client.initialize()).rejects.toThrow()
+        expect(localStorage.getItem('oauth.refresh_token')).toBeNull()
+        expect(client.loggedIn.value).toBe(false)
+    })
+
+    it('should handle the authorization code response and clear transient values', async () => {
+        setupDocument()
+        mockEndpoints({
+            tokenBody: JSON.stringify({
+                access_token: 'acc',
+                token_type: 'bearer',
+                refresh_token: 'ref',
+            }),
+        })
+        // No `openid` scope: the token response has no id_token, so this
+        // exercises the plain OAuth 2.0 path without JWT validation.
+        const client = new OAuthClient({
+            clientId: 'test',
+            url: 'https://dummy.com',
+        })
+        await client.initialize()
+        await client.authorize()
+        const state = localStorage.getItem('oauth.state') as string
+        const params = new URLSearchParams({ code: 'the-code', state })
+        await client.handleCodeResponse(params)
+        expect(client.accessToken.value).toBe('acc')
+        expect(localStorage.getItem('oauth.refresh_token')).toBe('ref')
+        expect(localStorage.getItem('oauth.code_verifier')).toBeNull()
+        expect(localStorage.getItem('oauth.state')).toBeNull()
+        expect(localStorage.getItem('oauth.nonce')).toBeNull()
+    })
+
+    it('should reject a mismatched state (CSRF protection)', async () => {
+        setupDocument()
+        mockEndpoints({
+            tokenBody: JSON.stringify({
+                access_token: 'acc',
+                token_type: 'bearer',
+            }),
+        })
+        const client = new OAuthClient({
+            clientId: 'test',
+            url: 'https://dummy.com',
+        })
+        await client.initialize()
+        await client.authorize()
+        const params = new URLSearchParams({ code: 'the-code', state: 'WRONG' })
+        await expect(client.handleCodeResponse(params)).rejects.toThrow()
+        // Transient values must be cleared even on failure.
+        expect(localStorage.getItem('oauth.code_verifier')).toBeNull()
+        expect(localStorage.getItem('oauth.state')).toBeNull()
+        expect(localStorage.getItem('oauth.nonce')).toBeNull()
+        expect(client.loggedIn.value).toBe(false)
+    })
+
+    it('should return false from handleCodeResponse when no code is present', async () => {
+        setupDocument()
+        mockEndpoints()
+        const client = new OAuthClient({
+            clientId: 'test',
+            url: 'https://dummy.com',
+        })
+        await client.initialize()
+        await client.authorize()
+        const result = await client.handleCodeResponse(
+            new URLSearchParams({ state: 'whatever' }),
+        )
+        expect(result).toBe(false)
+        expect(localStorage.getItem('oauth.code_verifier')).toBeNull()
+    })
+
+    it('should return false from handleCodeResponse without a code verifier', async () => {
+        setupDocument()
+        mockEndpoints()
+        const client = new OAuthClient({
+            clientId: 'test',
+            url: 'https://dummy.com',
+        })
+        await client.initialize()
+        const result = await client.handleCodeResponse(
+            new URLSearchParams({ code: 'x' }),
+        )
+        expect(result).toBe(false)
+    })
+
+    it('should logout, redirect and clear the session when logged in', async () => {
+        const replace = setupDocument()
+        mockEndpoints({
+            tokenBody: JSON.stringify({
+                access_token: 'acc',
+                token_type: 'bearer',
+                refresh_token: 'ref',
+            }),
+        })
+        new LocalStorage('oauth').set('refresh_token', 'r')
+        const client = new OAuthClient({
+            clientId: 'test',
+            url: 'https://dummy.com',
+            postLogoutRedirectUri: 'https://my-app.com',
+        })
+        await client.initialize()
+        expect(client.loggedIn.value).toBe(true)
+        client.logout('user@example.com')
+        const url = decodeURIComponent(replace.mock.calls.at(-1)![0] as string)
+        expect(url).toContain('https://dummy.com/oauth2/v2.0/logout')
+        expect(url).toContain('post_logout_redirect_uri=https://my-app.com')
+        expect(url).toContain('logout_hint=user@example.com')
+        expect(localStorage.getItem('oauth.refresh_token')).toBeNull()
+        expect(client.loggedIn.value).toBe(false)
+    })
+
+    it('should not redirect on logout when not logged in', async () => {
+        const replace = setupDocument()
+        mockEndpoints()
+        const client = new OAuthClient({
+            clientId: 'test',
+            url: 'https://dummy.com',
+        })
+        await client.initialize()
+        client.logout()
+        expect(replace).not.toHaveBeenCalled()
+    })
+
+    it('should reset tokens when extend changes the url', async () => {
+        setupDocument()
+        new LocalStorage('oauth').set('refresh_token', 'r')
+        const client = new OAuthClient({
+            clientId: 'test',
+            url: 'https://dummy.com',
+        })
+        client.extend({ clientId: 'test', url: 'https://other.com' })
+        expect(localStorage.getItem('oauth.refresh_token')).toBeNull()
+    })
+
+    it('should reload values from the new storage when extend changes storageType', () => {
+        setupDocument()
+        new SessionStorage('oauth').set('refresh_token', 'from-session')
+        const client = new OAuthClient({
+            clientId: 'test',
+            url: 'https://dummy.com',
+        })
+        client.extend({
+            clientId: 'test',
+            url: 'https://dummy.com',
+            storageType: 'session',
+        })
+        expect(client.loggedIn.value).toBe(false)
+        // The refresh token is now read from sessionStorage.
+        expect(sessionStorage.getItem('oauth.refresh_token')).toBe('from-session')
+    })
+
+    it('should handle a code in the URL before refreshing on initialize', async () => {
+        setupDocument()
+        // Distinguish the two grant types by the access token they return.
+        fetchMock.mockResponse(async (req) => {
+            if (req.url.includes('/token')) {
+                const body = await req.text()
+                const token = body.includes('grant_type=authorization_code')
+                    ? 'from-code'
+                    : 'from-refresh'
+                return {
+                    body: JSON.stringify({
+                        access_token: token,
+                        token_type: 'bearer',
+                    }),
+                    status: 200,
+                }
+            }
+            return { body: response, status: 200 }
+        })
+        const storage = new LocalStorage('oauth')
+        storage.set('refresh_token', 'stale-refresh')
+        storage.set('code_verifier', 'a'.repeat(43))
+        storage.set('state', 'my-state')
+        window.history.replaceState(null, '', '/?code=the-code&state=my-state')
+        const client = new OAuthClient({
+            clientId: 'test',
+            url: 'https://dummy.com',
+        })
+        await client.initialize()
+        window.history.replaceState(null, '', '/')
+        // The authorization code flow must win over the stale refresh token.
+        expect(client.accessToken.value).toBe('from-code')
+        expect(localStorage.getItem('oauth.code_verifier')).toBeNull()
+    })
+
+    describe('id token and RP-initiated logout', () => {
+        it('stores the id token from the code response and sends it as id_token_hint on logout', async () => {
+            const replace = setupDocument()
+            let idToken: string | undefined
+            fetchMock.mockResponse(async (req) => {
+                if (req.url.includes('/token')) {
+                    return {
+                        body: JSON.stringify({
+                            access_token: 'acc',
+                            token_type: 'bearer',
+                            refresh_token: 'ref',
+                            id_token: idToken,
+                        }),
+                        status: 200,
+                    }
+                }
+                return { body: response, status: 200 }
+            })
+            const client = new OAuthClient({
+                clientId: 'test',
+                scopes: ['openid', 'profile'],
+                url: 'https://dummy.com',
+                postLogoutRedirectUri: 'https://my-app.com',
+            })
+            await client.initialize()
+            await client.authorize()
+            const state = localStorage.getItem('oauth.state') as string
+            const nonce = localStorage.getItem('oauth.nonce') as string
+            idToken = makeIdToken({ nonce })
+            await client.handleCodeResponse(
+                new URLSearchParams({ code: 'the-code', state }),
+            )
+            expect(client.idToken.value).toBe(idToken)
+            expect(localStorage.getItem('oauth.id_token')).toBe(idToken)
+            client.logout()
+            const url = new URL(replace.mock.calls.at(-1)![0] as string)
+            expect(url.searchParams.get('id_token_hint')).toBe(idToken)
+            expect(url.searchParams.get('client_id')).toBe('test')
+            expect(url.searchParams.get('post_logout_redirect_uri')).toBe(
+                'https://my-app.com',
+            )
+            // Logged out: nothing about the session may survive in storage.
+            expect(localStorage.getItem('oauth.id_token')).toBeNull()
+        })
+
+        it('keeps the persisted id token across a refresh that returns none', async () => {
+            const replace = setupDocument()
+            mockEndpoints({
+                tokenBody: JSON.stringify({
+                    access_token: 'acc',
+                    token_type: 'bearer',
+                    refresh_token: 'ref',
+                }),
+            })
+            const storage = new LocalStorage('oauth')
+            storage.set('refresh_token', 'r')
+            storage.set('id_token', 'stored-id-token')
+            const client = new OAuthClient({
+                clientId: 'test',
+                url: 'https://dummy.com',
+            })
+            await client.initialize()
+            expect(client.idToken.value).toBe('stored-id-token')
+            client.logout()
+            const url = new URL(replace.mock.calls.at(-1)![0] as string)
+            expect(url.searchParams.get('id_token_hint')).toBe(
+                'stored-id-token',
+            )
+        })
+
+        it('omits id_token_hint from the logout URL when no id token exists', async () => {
+            const replace = setupDocument()
+            mockEndpoints({
+                tokenBody: JSON.stringify({
+                    access_token: 'acc',
+                    token_type: 'bearer',
+                    refresh_token: 'ref',
+                }),
+            })
+            new LocalStorage('oauth').set('refresh_token', 'r')
+            const client = new OAuthClient({
+                clientId: 'test',
+                url: 'https://dummy.com',
+            })
+            await client.initialize()
+            client.logout()
+            const url = new URL(replace.mock.calls.at(-1)![0] as string)
+            expect(url.searchParams.has('id_token_hint')).toBe(false)
+            expect(url.searchParams.get('client_id')).toBe('test')
+        })
+
+        it('redirects with id_token_hint after a reload of a session without a refresh token', async () => {
+            const replace = setupDocument()
+            mockEndpoints()
+            // A code flow that issued no refresh token, after a page reload:
+            // the id token is restored from storage, the access token is gone.
+            new LocalStorage('oauth').set('id_token', 'restored-id-token')
+            const client = new OAuthClient({
+                clientId: 'test',
+                url: 'https://dummy.com',
+                postLogoutRedirectUri: 'https://my-app.com',
+            })
+            await client.initialize()
+            expect(client.loggedIn.value).toBe(false)
+            client.logout()
+            const url = new URL(replace.mock.calls.at(-1)![0] as string)
+            expect(url.pathname).toContain('logout')
+            expect(url.searchParams.get('id_token_hint')).toBe(
+                'restored-id-token',
+            )
+            expect(url.searchParams.get('client_id')).toBe('test')
+            expect(localStorage.getItem('oauth.id_token')).toBeNull()
+        })
+
+        it('clears the persisted id token when the refresh fails', async () => {
+            setupDocument()
+            mockEndpoints({
+                tokenBody: JSON.stringify({ error: 'invalid_grant' }),
+                tokenStatus: 400,
+            })
+            const storage = new LocalStorage('oauth')
+            storage.set('refresh_token', 'expired')
+            storage.set('id_token', 'stale-id-token')
+            const client = new OAuthClient({
+                clientId: 'test',
+                url: 'https://dummy.com',
+            })
+            await expect(client.initialize()).rejects.toThrow()
+            expect(localStorage.getItem('oauth.id_token')).toBeNull()
+        })
+    })
+
+    describe('resource indicators (RFC 8707)', () => {
+        /**
+         * Collect the bodies of every token request the client made, so a test
+         * can assert what was actually sent to the token endpoint.
+         */
+        function captureTokenRequests() {
+            const bodies: string[] = []
+            fetchMock.mockResponse(async (req) => {
+                if (req.url.includes('/token')) {
+                    bodies.push(await req.text())
+                    return {
+                        body: JSON.stringify({
+                            access_token: 'an-access-token',
+                            token_type: 'bearer',
+                            refresh_token: 'a-refresh-token',
+                        }),
+                        status: 200,
+                    }
+                }
+                return { body: response, status: 200 }
+            })
+            return bodies
+        }
+
+        it('sends the resource on the authorization request', async () => {
+            const replace = setupDocument()
+            mockEndpoints()
+            const client = new OAuthClient({
+                clientId: 'test',
+                url: 'https://dummy.com',
+                resource: 'https://dummy.com/api',
+            })
+            await client.initialize()
+            await client.authorize()
+            const url = new URL(replace.mock.calls.at(-1)![0] as string)
+            expect(url.searchParams.getAll('resource')).toEqual([
+                'https://dummy.com/api',
+            ])
+        })
+
+        it('repeats the parameter for multiple resources', async () => {
+            const replace = setupDocument()
+            mockEndpoints()
+            const client = new OAuthClient({
+                clientId: 'test',
+                url: 'https://dummy.com',
+                resource: ['https://dummy.com/api', 'https://dummy.com/other'],
+            })
+            await client.initialize()
+            await client.authorize()
+            const url = new URL(replace.mock.calls.at(-1)![0] as string)
+            expect(url.searchParams.getAll('resource')).toEqual([
+                'https://dummy.com/api',
+                'https://dummy.com/other',
+            ])
+        })
+
+        it('sends the resource when exchanging the authorization code', async () => {
+            setupDocument()
+            const bodies = captureTokenRequests()
+            const storage = new LocalStorage('oauth')
+            storage.set('code_verifier', 'a'.repeat(43))
+            storage.set('state', 'my-state')
+            window.history.replaceState(null, '', '/?code=the-code&state=my-state')
+            const client = new OAuthClient({
+                clientId: 'test',
+                url: 'https://dummy.com',
+                resource: 'https://dummy.com/api',
+            })
+            await client.initialize()
+            window.history.replaceState(null, '', '/')
+            const body = new URLSearchParams(bodies.at(-1))
+            expect(body.get('grant_type')).toBe('authorization_code')
+            expect(body.getAll('resource')).toEqual(['https://dummy.com/api'])
+        })
+
+        it('sends the resource when refreshing', async () => {
+            setupDocument()
+            const bodies = captureTokenRequests()
+            new LocalStorage('oauth').set('refresh_token', 'a-refresh-token')
+            const client = new OAuthClient({
+                clientId: 'test',
+                url: 'https://dummy.com',
+                resource: 'https://dummy.com/api',
+            })
+            await client.initialize()
+            const body = new URLSearchParams(bodies.at(-1))
+            expect(body.get('grant_type')).toBe('refresh_token')
+            expect(body.getAll('resource')).toEqual(['https://dummy.com/api'])
+        })
+
+        it('keeps the caller additional parameters alongside the resource', async () => {
+            setupDocument()
+            const bodies = captureTokenRequests()
+            new LocalStorage('oauth').set('refresh_token', 'a-refresh-token')
+            const client = new OAuthClient({
+                clientId: 'test',
+                url: 'https://dummy.com',
+                resource: 'https://dummy.com/api',
+            })
+            await client.initialize()
+            await client.refreshToken({
+                additionalParameters: { audience: 'extra' },
+            })
+            const body = new URLSearchParams(bodies.at(-1))
+            expect(body.get('audience')).toBe('extra')
+            expect(body.getAll('resource')).toEqual(['https://dummy.com/api'])
+        })
+
+        it('lets a per-call resource override the configured one', async () => {
+            setupDocument()
+            const bodies = captureTokenRequests()
+            new LocalStorage('oauth').set('refresh_token', 'a-refresh-token')
+            const client = new OAuthClient({
+                clientId: 'test',
+                url: 'https://dummy.com',
+                resource: 'https://dummy.com/api',
+            })
+            await client.initialize()
+            await client.refreshToken({
+                additionalParameters: { resource: 'https://dummy.com/other' },
+            })
+            const body = new URLSearchParams(bodies.at(-1))
+            expect(body.getAll('resource')).toEqual(['https://dummy.com/other'])
+        })
+
+        it('sends nothing when no resource is configured', async () => {
+            const replace = setupDocument()
+            const bodies = captureTokenRequests()
+            new LocalStorage('oauth').set('refresh_token', 'a-refresh-token')
+            const client = new OAuthClient({
+                clientId: 'test',
+                url: 'https://dummy.com',
+            })
+            await client.initialize()
+            await client.authorize()
+            const url = new URL(replace.mock.calls.at(-1)![0] as string)
+            expect(url.searchParams.has('resource')).toBe(false)
+            expect(new URLSearchParams(bodies.at(-1)).has('resource')).toBe(
+                false,
+            )
+        })
+
+        it('clears the resource when extended with an empty array', async () => {
+            const replace = setupDocument()
+            mockEndpoints()
+            const client = new OAuthClient({
+                clientId: 'test',
+                url: 'https://dummy.com',
+                resource: 'https://dummy.com/api',
+            })
+            await client.initialize()
+            client.extend({
+                clientId: 'test',
+                url: 'https://dummy.com',
+                resource: [],
+            })
+            await client.initialize()
+            await client.authorize()
+            const url = new URL(replace.mock.calls.at(-1)![0] as string)
+            expect(url.searchParams.has('resource')).toBe(false)
+        })
     })
 })

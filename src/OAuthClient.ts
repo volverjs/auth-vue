@@ -4,6 +4,7 @@ import type { Storage } from './Storage'
 import * as oauth from 'oauth4webapi'
 import { computed, readonly, ref, watch } from 'vue'
 import { LocalStorage } from './LocalStorage'
+import { SessionStorage } from './SessionStorage'
 
 export type OAuthClientOptions = {
     /**
@@ -18,7 +19,7 @@ export type OAuthClientOptions = {
      */
     url: string
     /**
-     * The client ID of the applicatio.
+     * The client ID of the application.
      * @example
      * ```typescript
      * const client = new OAuthClient({
@@ -29,8 +30,8 @@ export type OAuthClientOptions = {
      */
     clientId: string
     /**
-     * The client authentication method, see {@link oauth.ClientAuthenticationMethod}
-     * @default 'none' public client
+     * The client authentication method, see {@link oauth.ClientAuth}
+     * @default 'None()' public client
      * @see [RFC 6749 - The OAuth 2.0 Authorization Framework](https://www.rfc-editor.org/rfc/rfc6749.html#section-2.3)
      * @see [OpenID Connect Core 1.0](https://openid.net/specs/openid-connect-core-1_0.html#ClientAuthentication)
      * @see [OAuth Token Endpoint Authentication Methods](https://www.iana.org/assignments/oauth-parameters/oauth-parameters.xhtml#token-endpoint-auth-method)
@@ -39,11 +40,11 @@ export type OAuthClientOptions = {
      * const client = new OAuthClient({
      *  url: 'https://example.com',
      * 	clientId: 'my-client-id',
-     *  tokenEndpointAuthMethod: 'client_secret_basic'
+     *  clientAuthentication: ClientSecretBasic('my-client-secret')
      * })
      * ```
      */
-    tokenEndpointAuthMethod?: oauth.ClientAuthenticationMethod
+    clientAuthentication?: oauth.ClientAuth
     /**
      * The scopes requested to the OAuth server.
      * @default ''
@@ -58,7 +59,19 @@ export type OAuthClientOptions = {
      */
     scopes?: string[] | string
     /**
-     * The storage to use for persisting the refresh token.
+     * The storage to use for persisting the refresh token, the id token, the
+     * code verifier and the PKCE/OIDC `state` and `nonce` values.
+     *
+     * Takes precedence over {@link OAuthClientOptions.storageType}: when an
+     * explicit instance is provided, `storageType` is ignored.
+     *
+     * ⚠️ **Security note**: by default the refresh token is persisted in
+     * `localStorage`. `localStorage` survives tab closes and browser restarts
+     * and is readable by any JavaScript running on the origin, so a single XSS
+     * flaw exposes the refresh token. Prefer {@link SessionStorage} (see
+     * {@link OAuthClientOptions.storageType}) when you don't need persistent,
+     * cross-tab sessions, or provide a custom, more secure storage.
+     *
      * @default
      * `new LocalStorage('oauth')`
      * @example
@@ -71,6 +84,32 @@ export type OAuthClientOptions = {
      * ```
      */
     storage?: Storage
+    /**
+     * Convenience setting to choose where the refresh token, id token, code
+     * verifier and `state`/`nonce` are persisted, without instantiating a
+     * storage manually.
+     *
+     * - `'local'` &rarr; `new LocalStorage('oauth')` (persists across tabs and
+     *   browser restarts).
+     * - `'session'` &rarr; `new SessionStorage('oauth')` (cleared when the tab
+     *   is closed, not shared between tabs).
+     *
+     * Ignored when {@link OAuthClientOptions.storage} is provided.
+     *
+     * ⚠️ See the security note on {@link OAuthClientOptions.storage}: prefer
+     * `'session'` to reduce the impact of XSS on the refresh token.
+     *
+     * @default 'local'
+     * @example
+     * ```typescript
+     * const client = new OAuthClient({
+     * 	url: 'https://example.com',
+     * 	clientId: 'my-client-id',
+     * 	storageType: 'session'
+     * })
+     * ```
+     */
+    storageType?: 'local' | 'session'
     /**
      * The redirect URI.
      * @default
@@ -99,47 +138,207 @@ export type OAuthClientOptions = {
      * ```
      */
     postLogoutRedirectUri?: string
+    /**
+     * Resource indicator(s): the API the access token is meant for. Sent as
+     * `resource` on the authorization request and on every token request
+     * (authorization code and refresh), which is what RFC 8707 asks of a client.
+     *
+     * Worth setting even when the authorization server does not require it:
+     * several servers only issue a **JWT** access token, rather than an opaque
+     * one, when the audience is stated this way, and a resource server that
+     * validates tokens locally against a JWKS needs that JWT.
+     *
+     * Pass an array to request more than one audience. An empty array clears a
+     * previously configured value through {@link OAuthClient.extend}.
+     *
+     * @see [RFC 8707 - Resource Indicators for OAuth 2.0](https://www.rfc-editor.org/rfc/rfc8707.html)
+     * @example
+     * ```typescript
+     * const client = new OAuthClient({
+     * 	url: 'https://example.com',
+     * 	clientId: 'my-client-id',
+     * 	resource: 'https://example.com/api'
+     * })
+     * ```
+     */
+    resource?: string | string[]
 }
 
 type UndefinedOrNullString = string | undefined | null
 
+/**
+ * Storage keys for the values that survive a page reload. Single source of
+ * truth so the keys are never duplicated as string literals across the class.
+ */
+const STORAGE_KEYS = {
+    refreshToken: 'refresh_token',
+    idToken: 'id_token',
+    codeVerifier: 'code_verifier',
+    state: 'state',
+    nonce: 'nonce',
+} as const
+
+/**
+ * Build the default storage from the `storageType` option.
+ * @param storageType - `'local'` (default) or `'session'`.
+ * @returns a {@link LocalStorage} or {@link SessionStorage} scoped to `oauth`.
+ */
+function createDefaultStorage(
+    storageType: OAuthClientOptions['storageType'] = 'local',
+): Storage {
+    return storageType === 'session'
+        ? new SessionStorage('oauth')
+        : new LocalStorage('oauth')
+}
+
+/**
+ * Resolve `document.location.origin` in a SSR-safe way.
+ * @returns the current origin, or an empty string when no DOM is available.
+ */
+function defaultLocationOrigin(): string {
+    return globalThis.document === undefined
+        ? ''
+        : globalThis.document.location.origin
+}
+
+/**
+ * Normalize the `scopes` option to a single space-separated string.
+ * @param scopes - A string, an array of strings, or undefined.
+ * @returns the space-separated scope string (empty when none provided).
+ */
+function normalizeScopes(scopes: OAuthClientOptions['scopes']): string {
+    if (typeof scopes === 'string') {
+        return scopes
+    }
+    return scopes?.join(' ') ?? ''
+}
+
+/**
+ * Normalize the `resource` option to an array.
+ * @param resource - A string, an array of strings, or undefined.
+ * @returns the resource indicators (empty when none provided).
+ */
+function normalizeResource(resource: OAuthClientOptions['resource']): string[] {
+    if (resource === undefined) {
+        return []
+    }
+    return typeof resource === 'string' ? [resource] : [...resource]
+}
+
+/**
+ * Normalize the shapes `oauth4webapi` accepts for `additionalParameters` to a
+ * list of entries, so parameters from different sources can be concatenated.
+ * A list is used rather than an object because a parameter may legitimately
+ * repeat: `resource` is the case this library cares about.
+ * @param parameters - The caller-provided additional parameters.
+ * @returns the parameters as `[name, value]` entries.
+ */
+function toParameterEntries(
+    parameters: TokenEndpointRequestOptions['additionalParameters'],
+): [string, string][] {
+    if (parameters === undefined) {
+        return []
+    }
+    if (parameters instanceof URLSearchParams) {
+        return [...parameters.entries()]
+    }
+    if (Array.isArray(parameters)) {
+        return parameters.map(([name, value]) => [name, value])
+    }
+    return Object.entries(parameters)
+}
+
 export class OAuthClient {
     private _client: oauth.Client
+    private _clientAuth: oauth.ClientAuth
     private _issuer: URL
     private _scope: string
     private _storage: Storage
     private _redirectUri: string
     private _postLogoutRedirectUri: string
+    private _resource: string[]
     private _refreshToken: Ref<UndefinedOrNullString> = ref()
+    private _idToken: Ref<UndefinedOrNullString> = ref<UndefinedOrNullString>()
     private _accessToken: Ref<UndefinedOrNullString> = ref()
     private _codeVerifier: Ref<UndefinedOrNullString> = ref()
+    private readonly _state: Ref<UndefinedOrNullString> = ref()
+    private readonly _nonce: Ref<UndefinedOrNullString> = ref()
     private _authorizationServer?: oauth.AuthorizationServer
+    private readonly _loggedIn = computed(() => !!this._accessToken.value)
+    private readonly _accessTokenReadonly = readonly(this._accessToken)
+
+    /**
+     * Reactive values persisted to storage, each paired with its storage key.
+     * Drives loading, resetting and the persistence watchers from one place.
+     */
+    private readonly _persistedRefs: ReadonlyArray<{
+        ref: Ref<UndefinedOrNullString>
+        key: string
+    }> = [
+        { ref: this._refreshToken, key: STORAGE_KEYS.refreshToken },
+        // Persisted so an RP-initiated logout can present `id_token_hint`
+        // even after a page reload, when the in-memory copy is gone. It lives
+        // next to the refresh token, so it adds no new exposure.
+        { ref: this._idToken, key: STORAGE_KEYS.idToken },
+        { ref: this._codeVerifier, key: STORAGE_KEYS.codeVerifier },
+        { ref: this._state, key: STORAGE_KEYS.state },
+        { ref: this._nonce, key: STORAGE_KEYS.nonce },
+    ]
 
     constructor(options: OAuthClientOptions) {
         this._issuer = new URL(options.url)
+        this._clientAuth = options.clientAuthentication ?? oauth.None()
         this._client = {
             client_id: options.clientId,
-            token_endpoint_auth_method:
-				options.tokenEndpointAuthMethod ?? 'none',
         }
-        this._scope
-            = typeof options.scopes === 'string'
-                ? options.scopes
-                : options.scopes?.join(' ') ?? ''
-        this._storage = options.storage ?? new LocalStorage('oauth')
-        this._refreshToken.value = this._storage.get('refresh_token')
-        this._codeVerifier.value = this._storage.get('code_verifier')
-        this._redirectUri = options.redirectUri ?? document.location.origin
+        this._scope = normalizeScopes(options.scopes)
+        this._storage = options.storage ?? createDefaultStorage(options.storageType)
+        this._redirectUri = options.redirectUri ?? defaultLocationOrigin()
         this._postLogoutRedirectUri
-            = options.postLogoutRedirectUri ?? document.location.origin
+            = options.postLogoutRedirectUri ?? defaultLocationOrigin()
+        this._resource = normalizeResource(options.resource)
 
-        watch(this._refreshToken, (newValue) => {
-            this._storage.set('refresh_token', newValue)
-        })
+        // Load before wiring the watchers so the initial values are not written
+        // straight back to storage.
+        this._loadFromStorage()
 
-        watch(this._codeVerifier, (newValue) => {
-            this._storage.set('code_verifier', newValue)
-        })
+        // `flush: 'sync'` persists each value synchronously as soon as its ref
+        // changes. The default ('pre') flush is asynchronous, which would let a
+        // navigation (e.g. `document.location.replace` in `logout`/`authorize`)
+        // happen before the storage write, losing or leaking tokens.
+        for (const { ref: target, key } of this._persistedRefs) {
+            watch(target, value => this._storage.set(key, value), {
+                flush: 'sync',
+            })
+        }
+    }
+
+    /**
+     * (Re)load every persisted value from the current storage.
+     */
+    private _loadFromStorage() {
+        for (const { ref: target, key } of this._persistedRefs) {
+            target.value = this._storage.get(key)
+        }
+    }
+
+    /**
+     * Clear every persisted value. The sync watchers remove them from storage.
+     */
+    private _resetPersisted() {
+        for (const { ref: target } of this._persistedRefs) {
+            target.value = undefined
+        }
+    }
+
+    /**
+     * Clear the transient PKCE/OIDC values used for a single authorization
+     * request (code verifier, state and nonce), without touching the tokens.
+     */
+    private _clearAuthorizationRequest() {
+        this._codeVerifier.value = undefined
+        this._state.value = undefined
+        this._nonce.value = undefined
     }
 
     /**
@@ -160,28 +359,23 @@ export class OAuthClient {
         if (options.url) {
             this._issuer = new URL(options.url)
             this._authorizationServer = undefined
-            this._refreshToken.value = undefined
             this._accessToken.value = undefined
-            this._codeVerifier.value = undefined
+            this._resetPersisted()
         }
         if (options.clientId) {
             this._client.client_id = options.clientId
         }
-        if (options.tokenEndpointAuthMethod) {
-            this._client.token_endpoint_auth_method
-                = options.tokenEndpointAuthMethod
+        if (options.clientAuthentication) {
+            this._clientAuth = options.clientAuthentication
         }
         if (options.scopes) {
-            this._scope
-                = typeof options.scopes === 'string'
-                    ? options.scopes
-                    : options.scopes?.join(' ') ?? ''
+            this._scope = normalizeScopes(options.scopes)
         }
-        if (options.storage) {
-            this._storage = options.storage
-            this._refreshToken.value = this._storage.get('refresh_token')
+        if (options.storage || options.storageType) {
+            this._storage
+                = options.storage ?? createDefaultStorage(options.storageType)
             this._accessToken.value = undefined
-            this._codeVerifier.value = this._storage.get('code_verifier')
+            this._loadFromStorage()
         }
         if (options.redirectUri) {
             this._redirectUri = options.redirectUri
@@ -189,6 +383,42 @@ export class OAuthClient {
         if (options.postLogoutRedirectUri) {
             this._postLogoutRedirectUri = options.postLogoutRedirectUri
         }
+        // Checked against `undefined` rather than for truthiness, so that an
+        // empty array clears the configured resource indicators.
+        if (options.resource !== undefined) {
+            this._resource = normalizeResource(options.resource)
+        }
+    }
+
+    /**
+     * The configured resource indicators as token-request parameters.
+     * @returns one `resource` entry per configured value (empty when none).
+     */
+    private _resourceParameters(): [string, string][] {
+        return this._resource.map(value => ['resource', value])
+    }
+
+    /**
+     * Add the configured resource indicators to a token request, leaving the
+     * caller's own parameters in place. A `resource` supplied by the caller
+     * wins: a per-call audience is a deliberate override of the default, not
+     * something to silently request alongside it.
+     * @param options - The caller-provided token endpoint options.
+     * @returns the options to pass to `oauth4webapi`, or `undefined` when there
+     * is nothing to add.
+     */
+    private _withResource(
+        options?: TokenEndpointRequestOptions,
+    ): TokenEndpointRequestOptions | undefined {
+        const resource = this._resourceParameters()
+        if (!resource.length) {
+            return options
+        }
+        const provided = toParameterEntries(options?.additionalParameters)
+        if (provided.some(([name]) => name === 'resource')) {
+            return options
+        }
+        return { ...options, additionalParameters: [...provided, ...resource] }
     }
 
     /**
@@ -209,11 +439,22 @@ export class OAuthClient {
             .then(response =>
                 oauth.processDiscoveryResponse(this._issuer, response),
             )
+        const urlParams
+            = globalThis.window === undefined
+                ? new URLSearchParams()
+                : new URLSearchParams(globalThis.window.location.search)
+        // Completing an authorization redirect (a fresh code is in the URL and
+        // we have the matching code verifier) takes precedence over an existing
+        // refresh token, e.g. when re-authenticating while already logged in.
+        if (this._codeVerifier.value && urlParams.has('code')) {
+            return await this.handleCodeResponse(urlParams, undefined, options)
+        }
         if (this._refreshToken.value) {
             return await this.refreshToken(options)
         }
         if (this._codeVerifier.value) {
-            const urlParams = new URLSearchParams(window.location.search)
+            // Stale code verifier without a code in the URL: let
+            // handleCodeResponse discard it.
             return await this.handleCodeResponse(urlParams)
         }
         if (options?.accessToken) {
@@ -241,6 +482,14 @@ export class OAuthClient {
             throw new Error('OAuthClient not initialized')
         }
         this._codeVerifier.value = oauth.generateRandomCodeVerifier()
+        this._state.value = oauth.generateRandomState()
+        // The `nonce` is an OpenID Connect concept tied to the `id_token`,
+        // which is only returned when the `openid` scope is requested. For
+        // plain OAuth 2.0 flows we must not send/expect it, otherwise the token
+        // response would be (wrongly) required to contain an `id_token`.
+        this._nonce.value = this._requestsOpenId()
+            ? oauth.generateRandomNonce()
+            : undefined
         const codeChallenge = await oauth.calculatePKCECodeChallenge(
             this._codeVerifier.value,
         )
@@ -254,7 +503,15 @@ export class OAuthClient {
         authorizationUrl.searchParams.set('redirect_uri', this._redirectUri)
         authorizationUrl.searchParams.set('response_type', 'code')
         authorizationUrl.searchParams.set('scope', this._scope)
-        document.location.replace(authorizationUrl.toString())
+        authorizationUrl.searchParams.set('state', this._state.value)
+        if (this._nonce.value) {
+            authorizationUrl.searchParams.set('nonce', this._nonce.value)
+        }
+        // Appended, not set: RFC 8707 allows more than one resource indicator.
+        for (const value of this._resource) {
+            authorizationUrl.searchParams.append('resource', value)
+        }
+        globalThis.document.location.replace(authorizationUrl.toString())
     }
 
     /**
@@ -262,7 +519,7 @@ export class OAuthClient {
      * @throws If the client is not initialized.
      * @param urlParams - The URL parameters.
      */
-    public handleCodeResponse = async (urlParams: URLSearchParams) => {
+    public handleCodeResponse = async (urlParams: URLSearchParams, options?: oauth.ProcessAuthorizationCodeResponseOptions, requestOptions?: TokenEndpointRequestOptions) => {
         if (!this._authorizationServer) {
             throw new Error('OAuthClient not initialized')
         }
@@ -270,43 +527,45 @@ export class OAuthClient {
             return false
         }
         if (!urlParams.has('code')) {
-            this._codeVerifier.value = undefined
+            this._clearAuthorizationRequest()
             return false
         }
-        const params = oauth.validateAuthResponse(
-            this._authorizationServer,
-            this._client,
-            urlParams,
-            oauth.expectNoState,
-        )
-        if (oauth.isOAuth2Error(params)) {
-            this._codeVerifier.value = undefined
-            throw new Error('OAuth 2.0 redirect error')
+        try {
+            const params = oauth.validateAuthResponse(
+                this._authorizationServer,
+                this._client,
+                urlParams,
+                this._state.value ?? oauth.expectNoState,
+            )
+            const response = await oauth.authorizationCodeGrantRequest(
+                this._authorizationServer,
+                this._client,
+                this._clientAuth,
+                params,
+                this._redirectUri,
+                this._codeVerifier.value,
+                this._withResource(requestOptions),
+            )
+            const result = await oauth.processAuthorizationCodeResponse(
+                this._authorizationServer,
+                this._client,
+                response,
+                this._nonce.value
+                    ? { expectedNonce: this._nonce.value, ...options }
+                    : options,
+            )
+            this._clearAuthorizationRequest()
+            this._accessToken.value = result.access_token
+            this._refreshToken.value = result.refresh_token
+            // Absent without the `openid` scope; assigning `undefined` also
+            // discards a stale value from a previous OpenID Connect session.
+            this._idToken.value = result.id_token
+            return this.accessToken
         }
-        const response = await oauth.authorizationCodeGrantRequest(
-            this._authorizationServer,
-            this._client,
-            params,
-            this._redirectUri,
-            this._codeVerifier.value,
-        )
-        if (oauth.parseWwwAuthenticateChallenges(response)) {
-            this._codeVerifier.value = undefined
-            throw new Error('www-authenticate challenges error')
+        catch (e) {
+            this._clearAuthorizationRequest()
+            throw e
         }
-        const result = await oauth.processAuthorizationCodeOpenIDResponse(
-            this._authorizationServer,
-            this._client,
-            response,
-        )
-        if (oauth.isOAuth2Error(result)) {
-            this._codeVerifier.value = undefined
-            throw new Error('OAuth 2.0 response body error')
-        }
-        this._codeVerifier.value = undefined
-        this._accessToken.value = result.access_token
-        this._refreshToken.value = result.refresh_token
-        return this.accessToken
     }
 
     /**
@@ -330,27 +589,39 @@ export class OAuthClient {
         if (!this._refreshToken.value) {
             return false
         }
-        const response = await oauth.refreshTokenGrantRequest(
-            this._authorizationServer,
-            this._client,
-            this._refreshToken.value,
-            options,
-        )
-        const result = await oauth.processRefreshTokenResponse(
-            this._authorizationServer,
-            this._client,
-            response,
-        )
-        if (oauth.isOAuth2Error(result)) {
-            throw new Error('OAuth 2.0 response body error')
+        try {
+            const response = await oauth.refreshTokenGrantRequest(
+                this._authorizationServer,
+                this._client,
+                this._clientAuth,
+                this._refreshToken.value,
+                this._withResource(options),
+            )
+            const result = await oauth.processRefreshTokenResponse(
+                this._authorizationServer,
+                this._client,
+                response,
+            )
+            this._accessToken.value = result.access_token
+            this._refreshToken.value = result.refresh_token
+            // A refresh response is not required to carry a new id token
+            // (OIDC Core §12.2): keep the previous one for the logout hint.
+            this._idToken.value = result.id_token ?? this._idToken.value
+            return this.accessToken
         }
-        this._accessToken.value = result.access_token
-        this._refreshToken.value = result.refresh_token
-        return this.accessToken
+        catch (e) {
+            // The refresh token is invalid or expired: clear it so that the
+            // next initialize() doesn't keep retrying a doomed refresh.
+            this._refreshToken.value = undefined
+            this._idToken.value = undefined
+            this._accessToken.value = undefined
+            throw e
+        }
     }
 
     /**
-     * Logout the user.
+     * Logout the user, redirecting to the end-session endpoint with the last
+     * id token as `id_token_hint` (OIDC RP-Initiated Logout 1.0).
      * @param logoutHint - The hint to the Authorization Server about the End-User that is logging out.
      * @throws If the client is not initialized.
      * @example
@@ -367,8 +638,14 @@ export class OAuthClient {
         if (!this._authorizationServer) {
             throw new Error('OAuthClient not initialized')
         }
-        this._refreshToken.value = undefined
-        if (this.loggedIn.value) {
+        // Captured before the reset wipes every persisted value: it becomes
+        // the `id_token_hint` on the end-session request below.
+        const idTokenHint = this._idToken.value
+        this._resetPersisted()
+        // The id token restored from storage can outlive the access token
+        // (page reload of a session without a refresh token): the OP session
+        // still has to be ended even when `loggedIn` is false.
+        if (this.loggedIn.value || idTokenHint) {
             this._accessToken.value = undefined
             const logoutUrl = new URL(
                 this._authorizationServer?.end_session_endpoint
@@ -378,11 +655,26 @@ export class OAuthClient {
                 'post_logout_redirect_uri',
                 this._postLogoutRedirectUri,
             )
+            // Both are OPTIONAL per OIDC RP-Initiated Logout 1.0 §2, but many
+            // authorization servers require the `id_token_hint` to identify
+            // the session to end, and recommend `client_id` alongside a
+            // `post_logout_redirect_uri`.
+            logoutUrl.searchParams.set('client_id', this._client.client_id)
+            if (idTokenHint) {
+                logoutUrl.searchParams.set('id_token_hint', idTokenHint)
+            }
             if (logoutHint) {
                 logoutUrl.searchParams.set('logout_hint', logoutHint)
             }
-            document.location.replace(logoutUrl.toString())
+            globalThis.document.location.replace(logoutUrl.toString())
         }
+    }
+
+    /**
+     * Whether the configured scope requests an OpenID Connect `id_token`.
+     */
+    private _requestsOpenId() {
+        return this._scope.split(' ').includes('openid')
     }
 
     /**
@@ -400,7 +692,7 @@ export class OAuthClient {
      * ```
      */
     public get loggedIn() {
-        return computed(() => !!this._accessToken.value)
+        return this._loggedIn
     }
 
     /**
@@ -419,8 +711,25 @@ export class OAuthClient {
      * ```
      */
     public get accessToken() {
-        return readonly(this._accessToken)
+        return this._accessTokenReadonly
     }
+
+    /**
+     * Reactive value indicating the OpenID Connect id token, when the `openid`
+     * scope was requested. Sent as `id_token_hint` on {@link logout}; exposed
+     * so the application can read the identity claims without another request.
+     * @example
+     * ```typescript
+     * const client = new OAuthClient({
+     * 	url: 'https://example.com',
+     * 	clientId: 'my-client-id',
+     * 	scopes: 'openid profile',
+     * })
+     * await client.initialize()
+     * console.log(client.idToken.value)
+     * ```
+     */
+    public readonly idToken = readonly(this._idToken)
 
     /**
      * Indicates whether the client has been initialized.
