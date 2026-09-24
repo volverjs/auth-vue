@@ -36,8 +36,7 @@ cp -r skills/volverjs-auth-vue ~/.claude/skills/volverjs-auth-vue
 
 ```text
 .claude-plugin/
-  plugin.json        # plugin manifest
-  marketplace.json   # marketplace catalog (the repo hosts itself)
+  marketplace.json   # marketplace catalog and plugin definition (the repo hosts itself)
 skills/
   volverjs-auth-vue/
     SKILL.md         # the skill
