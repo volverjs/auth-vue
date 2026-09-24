@@ -50,6 +50,8 @@ export default ({ mode }: { mode: string }) => {
             ...(mode === 'test' ? [] : [ESLint()]),
 
             // https://github.com/qmhc/unplugin-dts
+            // Without rootDir the declarations land in dist/src/ and break the
+            // package.json paths; entryRoot does not fix it.
             dts({
                 compilerOptions: {
                     rootDir: path.resolve(import.meta.dirname, 'src'),
