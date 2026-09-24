@@ -5,19 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
-
-### Added
-
-- OIDC RP-Initiated Logout hints: `logout()` now sends the last id token as `id_token_hint`, together with `client_id`, on the end-session redirect. Both parameters are optional per spec, but many authorization servers require the hint to identify the session to terminate.
-- `idToken` getter: the OpenID Connect id token as a readonly reactive ref. It is persisted next to the refresh token, so the logout hint survives a page reload.
-- Resource indicators (RFC 8707): the new `resource` option (string or array) is sent on the authorization request and on both token requests. `handleCodeResponse()` and `initialize()` now accept request options with `additionalParameters`, like `refreshToken()` already did; a `resource` passed per call overrides the configured one.
-
-### Changed
-
-- Dependencies update.
-
-## [1.0.0] - 2026-06-16
+## [1.0.0] - 2026-09-24
 
 First stable release.
 
@@ -28,6 +16,9 @@ First stable release.
 - OpenID Connect `nonce`: generated, sent and validated against the returned `id_token` when the `openid` scope is requested.
 - Type augmentation for `this.$vvAuth` (Vue Options API) when the plugin is installed with `{ global: true }`.
 - SSR-safe construction: no access to `document`/`window` at import or server-side rendering time.
+- OIDC RP-Initiated Logout hints: `logout()` now sends the last id token as `id_token_hint`, together with `client_id`, on the end-session redirect. Both parameters are optional per spec, but many authorization servers require the hint to identify the session to terminate.
+- `idToken` getter: the OpenID Connect id token as a readonly reactive ref. It is persisted next to the refresh token, so the logout hint survives a page reload.
+- Resource indicators (RFC 8707): the new `resource` option (string or array) is sent on the authorization request and on both token requests. `handleCodeResponse()` and `initialize()` now accept request options with `additionalParameters`, like `refreshToken()` already did; a `resource` passed per call overrides the configured one.
 
 ### Changed
 
@@ -49,7 +40,7 @@ First stable release.
 - Fixed `OauthClient` casing to `OAuthClient` in `exports` and `typesVersions`.
 - Corrected the README and JSDoc examples (composable import, storage support typo, `get()` returning `undefined` for a missing key).
 
-## [0.0.3] - 2024-10-02
+## [0.0.3] - 2025-10-02
 
 ### Added
 
@@ -65,7 +56,7 @@ First stable release.
 
 - Test with Vitest.
 
-## [0.0.1] - 2023-03-28
+## [0.0.1] - 2023-03-29
 
 ### Added
 
