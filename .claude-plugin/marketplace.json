@@ -1,5 +1,6 @@
 {
     "name": "volverjs-auth-vue",
+    "description": "The agent skill for @volverjs/auth-vue, packaged as a Claude Code plugin.",
     "owner": {
         "name": "8 Wave S.r.l.",
         "url": "https://8wave.it"
@@ -8,7 +9,15 @@
         {
             "name": "volverjs-auth-vue",
             "source": ".",
-            "description": "OAuth2 / OpenID Connect authentication for Vue 3 with @volverjs/auth-vue"
+            "strict": false,
+            "skills": ["./skills/"],
+            "description": "OAuth2 / OpenID Connect authentication for Vue 3 with @volverjs/auth-vue",
+            "author": {
+                "name": "8 Wave S.r.l."
+            },
+            "homepage": "https://github.com/volverjs/auth-vue",
+            "repository": "https://github.com/volverjs/auth-vue",
+            "license": "MIT"
         }
     ]
 }
