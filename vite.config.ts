@@ -12,7 +12,7 @@ export default ({ mode }: { mode: string }) => {
         },
         build: {
             lib: {
-                name: '@volverjs/data',
+                name: '@volverjs/auth-vue',
                 formats: ['es'],
                 entry: {
                     index: path.resolve(import.meta.dirname, 'src/index.ts'),
