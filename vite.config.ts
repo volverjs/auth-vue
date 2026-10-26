@@ -47,7 +47,7 @@ export default ({ mode }: { mode: string }) => {
             // https://github.com/gxmari007/vite-plugin-eslint
             // The ESLint worker keeps the process alive after vitest closes,
             // and linting already runs as a separate script.
-            ...(mode === 'test' ? [] : [ESLint()]),
+            mode !== 'test' && ESLint(),
 
             // https://github.com/qmhc/unplugin-dts
             // Without rootDir the declarations land in dist/src/ and break the
