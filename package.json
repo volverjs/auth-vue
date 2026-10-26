@@ -2,7 +2,7 @@
     "name": "@volverjs/auth-vue",
     "type": "module",
     "version": "0.0.0",
-    "packageManager": "pnpm@12.6.0",
+    "packageManager": "pnpm@12.15.0",
     "description": "Simple OAuth 2 / OpenID Connect plugin for Vue 3",
     "author": "8 Wave S.r.l.",
     "license": "MIT",
@@ -96,14 +96,14 @@
         "@antfu/eslint-config": "^10.0.0",
         "@nabla/vite-plugin-eslint": "^3.0.1",
         "copy": "^0.3.2",
-        "eslint": "^10.11.0",
-        "happy-dom": "^21.0.1",
+        "eslint": "^10.13.0",
+        "happy-dom": "^21.0.4",
         "node-fetch": "^3.3.2",
         "typescript": "^7.0.2",
         "unplugin-dts": "1.1.2",
-        "vite": "^8.3.0",
-        "vitest": "^5.0.1",
+        "vite": "^8.3.5",
+        "vitest": "^5.0.5",
         "vitest-fetch-mock": "^0.4.5",
-        "vue-tsc": "^3.3.11"
+        "vue-tsc": "^3.3.13"
     }
 }
