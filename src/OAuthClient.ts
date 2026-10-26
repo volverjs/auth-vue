@@ -222,7 +222,9 @@ function normalizeResource(resource: OAuthClientOptions['resource']): string[] {
     if (resource === undefined) {
         return []
     }
-    return typeof resource === 'string' ? [resource] : [...resource]
+    return typeof resource === 'string'
+        ? [resource]
+        : [...resource]
 }
 
 /**
@@ -240,7 +242,9 @@ function toParameterEntries(
         return []
     }
     if (parameters instanceof URLSearchParams) {
-        return [...parameters.entries()]
+        return [
+            ...parameters.entries(),
+        ]
     }
     if (Array.isArray(parameters)) {
         return parameters.map(([name, value]) => [name, value])
@@ -418,7 +422,13 @@ export class OAuthClient {
         if (provided.some(([name]) => name === 'resource')) {
             return options
         }
-        return { ...options, additionalParameters: [...provided, ...resource] }
+        return {
+            ...options,
+            additionalParameters: [
+                ...provided,
+                ...resource,
+            ],
+        }
     }
 
     /**
