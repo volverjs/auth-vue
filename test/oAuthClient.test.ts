@@ -23,7 +23,12 @@ const response = JSON.stringify({
         'code id_token',
         'id_token token',
     ],
-    scopes_supported: ['openid', 'profile', 'email', 'offline_access'],
+    scopes_supported: [
+        'openid',
+        'profile',
+        'email',
+        'offline_access',
+    ],
     issuer: 'https://dummy.com',
     request_uri_parameter_supported: false,
     userinfo_endpoint: 'https://graph.microsoft.com/oidc/userinfo',
