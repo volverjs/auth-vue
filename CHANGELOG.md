@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.3] - 2026-11-16
+
+### Fixed
+
+- `logout()` bound directly to a click (`@click="logout"`) no longer sends the click event as the logout hint. Vue passes the event as the first argument, so the end-session request carried `logout_hint=[object PointerEvent]`; a hint that is not a string is now ignored. The README example used that binding and now calls `logout()`.
+
 ## [1.0.2] - 2026-11-16
 
 ### Added
@@ -88,6 +94,7 @@ First stable release.
 - `SessionStorage` a class to store data in the browser's session storage;
 - `OAuthClient` a class to handle OAuth2 authentication.
 
+[1.0.3]: https://github.com/volverjs/auth-vue/compare/v1.0.2...v1.0.3
 [1.0.2]: https://github.com/volverjs/auth-vue/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/volverjs/auth-vue/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/volverjs/auth-vue/compare/v0.0.3...v1.0.0
