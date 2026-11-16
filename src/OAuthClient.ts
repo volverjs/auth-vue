@@ -673,7 +673,10 @@ export class OAuthClient {
             if (idTokenHint) {
                 logoutUrl.searchParams.set('id_token_hint', idTokenHint)
             }
-            if (logoutHint) {
+            // Strings only: bound as `@click="logout"` in a template, Vue
+            // passes the click event here, which would go out as
+            // `logout_hint=[object PointerEvent]`.
+            if (typeof logoutHint === 'string' && logoutHint) {
                 logoutUrl.searchParams.set('logout_hint', logoutHint)
             }
             globalThis.document.location.replace(logoutUrl.toString())

@@ -174,10 +174,10 @@ const { loggedIn, authorize, logout } = client
 
 <template>
     <div>
-        <button v-if="!loggedIn" @click="authorize">
+        <button v-if="!loggedIn" @click="authorize()">
             Login
         </button>
-        <button v-else @click="logout">
+        <button v-else @click="logout()">
             Logout
         </button>
     </div>
