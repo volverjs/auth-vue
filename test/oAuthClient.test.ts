@@ -441,6 +441,28 @@ describe('oAuthClient', () => {
         expect(client.loggedIn.value).toBe(false)
     })
 
+    it('should ignore a click event passed as the logout hint', async () => {
+        // `@click="logout"` in a template calls logout(event).
+        const replace = setupDocument()
+        mockEndpoints({
+            tokenBody: JSON.stringify({
+                access_token: 'acc',
+                token_type: 'bearer',
+                refresh_token: 'ref',
+            }),
+        })
+        new LocalStorage('oauth').set('refresh_token', 'r')
+        const client = new OAuthClient({
+            clientId: 'test',
+            url: 'https://dummy.com',
+        })
+        await client.initialize()
+        client.logout(new MouseEvent('click') as unknown as string)
+        const url = new URL(replace.mock.calls.at(-1)![0] as string)
+        expect(url.searchParams.has('logout_hint')).toBe(false)
+        expect(url.searchParams.get('client_id')).toBe('test')
+    })
+
     it('should not redirect on logout when not logged in', async () => {
         const replace = setupDocument()
         mockEndpoints()
