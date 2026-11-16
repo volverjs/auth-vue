@@ -2,7 +2,7 @@
     "name": "@volverjs/auth-vue",
     "type": "module",
     "version": "0.0.0",
-    "packageManager": "pnpm@12.15.0",
+    "packageManager": "pnpm@12.21.0",
     "description": "Simple OAuth 2 / OpenID Connect plugin for Vue 3",
     "author": "8 Wave S.r.l.",
     "license": "MIT",
@@ -24,25 +24,30 @@
     "exports": {
         ".": {
             "types": "./dist/index.d.ts",
-            "import": "./dist/index.js"
+            "import": "./dist/index.js",
+            "default": "./dist/index.js"
         },
         "./src/*": "./src/*",
         "./dist/*": "./dist/*",
         "./storage": {
             "types": "./dist/Storage.d.ts",
-            "import": "./dist/Storage.js"
+            "import": "./dist/Storage.js",
+            "default": "./dist/Storage.js"
         },
         "./local-storage": {
             "types": "./dist/LocalStorage.d.ts",
-            "import": "./dist/LocalStorage.js"
+            "import": "./dist/LocalStorage.js",
+            "default": "./dist/LocalStorage.js"
         },
         "./session-storage": {
             "types": "./dist/SessionStorage.d.ts",
-            "import": "./dist/SessionStorage.js"
+            "import": "./dist/SessionStorage.js",
+            "default": "./dist/SessionStorage.js"
         },
         "./oauth-client": {
             "types": "./dist/OAuthClient.d.ts",
-            "import": "./dist/OAuthClient.js"
+            "import": "./dist/OAuthClient.js",
+            "default": "./dist/OAuthClient.js"
         }
     },
     "main": "./dist/index.js",
@@ -81,7 +86,7 @@
         "type-check": "tsc --noEmit",
         "dev": "vite build --watch",
         "build": "vite build",
-        "test": "npm run test-vitest",
+        "test": "npm run build && npm run test-vitest",
         "test-vitest": "vitest run",
         "test-vitest-watch": "vitest",
         "credits": "npx @opengovsg/credits-generator"
@@ -94,16 +99,15 @@
     },
     "devDependencies": {
         "@antfu/eslint-config": "^10.0.0",
+        "@arethetypeswrong/cli": "^0.18.5",
         "@nabla/vite-plugin-eslint": "^3.0.1",
-        "copy": "^0.3.2",
-        "eslint": "^10.13.0",
+        "eslint": "^10.15.0",
         "happy-dom": "^21.0.4",
-        "node-fetch": "^3.3.2",
         "typescript": "^7.0.2",
         "unplugin-dts": "1.1.2",
-        "vite": "^8.3.5",
-        "vitest": "^5.0.5",
+        "vite": "^8.3.8",
+        "vitest": "^5.1.0",
         "vitest-fetch-mock": "^0.4.5",
-        "vue-tsc": "^3.3.13"
+        "vue-tsc": "^3.3.14"
     }
 }

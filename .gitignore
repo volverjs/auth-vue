@@ -6,4 +6,6 @@ node_modules
 dist
 coverage
 .eslintcache
+# `npm pack` output, also left by an interrupted arethetypeswrong run in package.test.ts
+*.tgz
 
