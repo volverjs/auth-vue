@@ -1,12 +1,12 @@
 import type { App, InjectionKey } from 'vue'
-import type { OAuthClientOptions } from './OAuthClient'
+import type { OAuthClientOptions } from './OAuthClient.js'
 import { getCurrentInstance, inject } from 'vue'
-import { OAuthClient } from './OAuthClient'
+import { OAuthClient } from './OAuthClient.js'
 
 export { OAuthClient }
-export { LocalStorage } from './LocalStorage'
-export { SessionStorage } from './SessionStorage'
-export { Storage } from './Storage'
+export { LocalStorage } from './LocalStorage.js'
+export { SessionStorage } from './SessionStorage.js'
+export { Storage } from './Storage.js'
 export {
     ClientSecretBasic,
     ClientSecretPost,
