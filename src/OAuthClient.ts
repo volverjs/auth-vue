@@ -1,10 +1,10 @@
 import type { TokenEndpointRequestOptions } from 'oauth4webapi'
 import type { Ref } from 'vue'
-import type { Storage } from './Storage'
+import type { Storage } from './Storage.js'
 import * as oauth from 'oauth4webapi'
 import { computed, readonly, ref, watch } from 'vue'
-import { LocalStorage } from './LocalStorage'
-import { SessionStorage } from './SessionStorage'
+import { LocalStorage } from './LocalStorage.js'
+import { SessionStorage } from './SessionStorage.js'
 
 export type OAuthClientOptions = {
     /**

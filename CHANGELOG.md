@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.2] - 2026-11-16
+
+### Added
+
+- CommonJS code can `require()` the package and its subpaths. The package still ships ES modules only, which Node loads through `require()` from 20.19 and 22.12 on; until now `exports` had no condition for `require()` to resolve, so it failed with `ERR_PACKAGE_PATH_NOT_EXPORTED`. CommonJS projects type-checking with TypeScript need `module: "nodenext"`, since `"node16"` models a Node version that cannot `require()` an ES module. Bundled code should keep using `import`: with `require()`, a bundler such as webpack resolves `vue` to its CommonJS build in your code and to its ES module build in this package, so the app runs two copies of Vue and `useOAuthClient()` cannot find the client.
+
+### Changed
+
+- The TypeScript sources published under `src/` import each other with a `.js` extension, as TypeScript expects in ES modules. A bundler that compiles them directly through the `@volverjs/auth-vue/src/*` export has to map `.js` to `.ts`: Vite does it on its own, webpack needs `resolve.extensionAlias`.
+
+### Fixed
+
+- The type declarations now resolve under `moduleResolution: "node16"` and `"nodenext"`. They imported each other without a file extension (`'./OAuthClient'`, `'./Storage'`), which those modes do not resolve in an ES module package, so the types behind them were lost. From the root entry, `createOAuthClient()` returned a client without `initialize()` and the other `OAuthClient` methods, and `OAuthClient`, `LocalStorage`, `SessionStorage` and `Storage` were typed `any`; the `local-storage`, `session-storage` and `oauth-client` subpaths lost the `Storage` type, so the methods `LocalStorage` and `SessionStorage` inherit from it and the `storage` option went unchecked ([#66](https://github.com/volverjs/auth-vue/issues/66)). The built JavaScript in `dist` is unchanged.
+
 ## [1.0.1] - 2026-10-26
 
 ### Fixed
@@ -74,6 +88,7 @@ First stable release.
 - `SessionStorage` a class to store data in the browser's session storage;
 - `OAuthClient` a class to handle OAuth2 authentication.
 
+[1.0.2]: https://github.com/volverjs/auth-vue/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/volverjs/auth-vue/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/volverjs/auth-vue/compare/v0.0.3...v1.0.0
 [0.0.3]: https://github.com/volverjs/auth-vue/compare/v0.0.2...v0.0.3
