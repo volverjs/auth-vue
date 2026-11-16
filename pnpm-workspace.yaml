@@ -9,3 +9,9 @@ onlyBuiltDependencies:
 # "typescript" to ^7 in package.json.
 overrides:
   typescript: ^6.0.3
+  # Security fixes the parents do not allow yet. Drop each entry once they do.
+  # GHSA-g3hv-75wg-m249: every minimatch below 11.0.1 is affected, while
+  # typescript-eslint 8.72 (lint) still asks for ^10.
+  'minimatch@<11.0.1': ^11.0.8
+  # GHSA-238p-pmpm-9mq7: micromark-extension-math 3.1 (via @eslint/markdown) asks for ^0.16.
+  'katex@<0.18.2': ^0.18.2
