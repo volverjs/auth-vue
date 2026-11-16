@@ -24,25 +24,30 @@
     "exports": {
         ".": {
             "types": "./dist/index.d.ts",
-            "import": "./dist/index.js"
+            "import": "./dist/index.js",
+            "default": "./dist/index.js"
         },
         "./src/*": "./src/*",
         "./dist/*": "./dist/*",
         "./storage": {
             "types": "./dist/Storage.d.ts",
-            "import": "./dist/Storage.js"
+            "import": "./dist/Storage.js",
+            "default": "./dist/Storage.js"
         },
         "./local-storage": {
             "types": "./dist/LocalStorage.d.ts",
-            "import": "./dist/LocalStorage.js"
+            "import": "./dist/LocalStorage.js",
+            "default": "./dist/LocalStorage.js"
         },
         "./session-storage": {
             "types": "./dist/SessionStorage.d.ts",
-            "import": "./dist/SessionStorage.js"
+            "import": "./dist/SessionStorage.js",
+            "default": "./dist/SessionStorage.js"
         },
         "./oauth-client": {
             "types": "./dist/OAuthClient.d.ts",
-            "import": "./dist/OAuthClient.js"
+            "import": "./dist/OAuthClient.js",
+            "default": "./dist/OAuthClient.js"
         }
     },
     "main": "./dist/index.js",
