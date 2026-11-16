@@ -86,7 +86,7 @@
         "type-check": "tsc --noEmit",
         "dev": "vite build --watch",
         "build": "vite build",
-        "test": "npm run test-vitest",
+        "test": "npm run build && npm run test-vitest",
         "test-vitest": "vitest run",
         "test-vitest-watch": "vitest",
         "credits": "npx @opengovsg/credits-generator"
